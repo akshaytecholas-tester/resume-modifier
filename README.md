@@ -22,6 +22,7 @@ Eliminating silent omission is the point. Everything else is mechanism.
 | [docs/spec-04-api-and-ui.md](docs/spec-04-api-and-ui.md) | Endpoints, the write path, the screens |
 | [docs/spec-05-latex-rendering.md](docs/spec-05-latex-rendering.md) | LaTeX generation and PDF output |
 | [docs/spec-06-provider-backends.md](docs/spec-06-provider-backends.md) | Running on providers other than Claude |
+| [docs/spec-07-applications-and-tracker.md](docs/spec-07-applications-and-tracker.md) | Application archive, tracker, dual contact sets |
 | [docs/open-questions.md](docs/open-questions.md) | What's still undecided and what each answer blocks |
 
 `traceability.md` is the fast review surface: every requirement appears there alongside the user's own words that produced it. If something asked for isn't in that table, the PRD is incomplete.
@@ -44,6 +45,10 @@ $EDITOR kb/identity.yaml          # name, phone, email, links
 ```
 
 `kb/identity.yaml` is gitignored. It is the only PII-dense file in the project ([spec-01 §2](docs/spec-01-knowledge-base.md)) — contact details live there and are referenced from everywhere else, so nothing personal ends up in the repo or in git history.
+
+It supports **named contact sets**, so different application channels can carry different email and phone details, and every configured set gets its own rendered resume ([spec-07 §8](docs/spec-07-applications-and-tracker.md)). A flat `email`/`phone` works too and renders a single resume.
+
+`applications/` — the archive of what was actually sent, plus the tracker — is gitignored for the same reason: it holds complete resumes, job descriptions, and referrer names.
 
 The rest of `kb/` is also local by nature: it holds a personal career record. `.gitignore` additionally excludes `evidence/` (certificates, letters), source resume PDFs, compiled output under `runs/`, and the usual environment directories.
 

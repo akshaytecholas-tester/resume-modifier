@@ -115,6 +115,8 @@ Two pages are permitted when the user chooses; the policy question of when that'
 
 ## 7. Export
 
+The renderer takes a `contact_set` argument naming a set in `identity.yaml` ([spec-01 §2.1](spec-01-knowledge-base.md)), and **export produces one resume per configured set** — `resume-referral.*`, `resume-direct.*` (R17). Only the contact block differs; the tailored body is byte-identical, since the pipeline runs once (AC-R17.3). With one set configured, one file is produced (AC-R17.4).
+
 - **`export.pdf`** — compiled output (AC-R6.1). Compile failure returns the Tectonic error with the offending source line, never an empty file (AC-R6.2).
 - **`export.tex`** — self-contained source, preamble inlined, no local `\input`, so it compiles in Overleaf unmodified (AC-R7.2).
 

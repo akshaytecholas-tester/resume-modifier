@@ -22,6 +22,10 @@ Every requirement maps to the user's own words, to testable acceptance criteria,
 | R14 | Light React frontend, Python backend and SDK | "I need a light frontend framework like react or a better optimised version and python for backend and sdk" | AC-R14.1, AC-R14.2 | [spec-04 §1](spec-04-api-and-ui.md), [spec-04 §4](spec-04-api-and-ui.md), [spec-04 §7](spec-04-api-and-ui.md), [spec-06 §1](spec-06-provider-backends.md) |
 | R15 | Subscription-preferred, pluggable runtime | "using claude sdk and the current subscription I have to leverage" | AC-R15.1, AC-R15.2, AC-R15.3 | [spec-03 §2](spec-03-runtime-auth.md), [spec-03 §3](spec-03-runtime-auth.md), [spec-06](spec-06-provider-backends.md) |
 | R16 | Text chat in v1; voice deferred | "I should have option to talk and update my knowledge" — scoped to text chat by decision 2026-10-06 | AC-R16.1, AC-R16.2 | [PRD §3](PRD.md) |
+| R17 | Two contact sets; both resumes rendered every run | "I need two set of contanct details mail 1 and number 1 ,mail 2 and number 2 … when resume is created I need it to be created with both set ,so I can use one resume for referal and one i can apply right away without any referals" | AC-R17.1, AC-R17.2, AC-R17.3, AC-R17.4 | [spec-01 §2.1](spec-01-knowledge-base.md), [spec-05 §7](spec-05-latex-rendering.md), [spec-07 §8](spec-07-applications-and-tracker.md) |
+| R18 | Deterministic, collision-free application archive | "dowlonading the resumes should create a folder with jd, details and etc and download both cvs under that folders should be unqiue … comapny/jobrole-jobid-date/cv1-referal,cv2-nonreferal … So when I open the folder I can easier identify the cvs under the companies I have applied" | AC-R18.1, AC-R18.2, AC-R18.3, AC-R18.4, AC-R18.5 | [spec-07 §2](spec-07-applications-and-tracker.md), [spec-07 §3](spec-07-applications-and-tracker.md), [spec-07 §7](spec-07-applications-and-tracker.md) |
+| R19 | Application tracker | "I need a tracker I can use by default .In which I can track the job I have applied resume used and if referals recived the referals recived" | AC-R19.1, AC-R19.2, AC-R19.3, AC-R19.4, AC-R19.5 | [spec-07 §4](spec-07-applications-and-tracker.md), [spec-07 §6](spec-07-applications-and-tracker.md), [spec-04 §6.6](spec-04-api-and-ui.md) |
+| R20 | Immutable content snapshot | "also which keep track of the resumes content so if I get any further comminications for further stages I can refer to the content I have used to apply" | AC-R20.1, AC-R20.2, AC-R20.3, AC-R20.4 | [spec-07 §1](spec-07-applications-and-tracker.md), [spec-07 §5](spec-07-applications-and-tracker.md), [spec-04 §6.7](spec-04-api-and-ui.md) |
 
 ## Reverse check — did we invent anything?
 
@@ -35,6 +39,9 @@ Every requirement above traces to a quote. Three items in the specs are **not** 
 | Git versioning of every KB write (AC-R8.3) | Proposed by assistant, 2026-10-06 | You asked for "easily editable", not versioned. Added because three writers (browser, text editor, agents) touch the same files, and undo/diff come free from git rather than needing an undo stack |
 | `profiles/` saved tag weightings | Proposed by assistant, 2026-10-06 | Reframes the existing PDF as one rendering of the KB rather than a separate document |
 | Proposals inbox for agent-suggested KB changes | Proposed by assistant, 2026-10-06 | Required to keep AC-R13.3's single write path honest — agents propose, they never write |
+| `runs/` vs `applications/` boundary; promotion as an explicit step | Proposed by assistant, 2026-10-07 | You asked for a tracker and an archive, not for a distinction between attempts and submissions. Added because exporting a PDF to look at it must not create an application record, and because freezing requires a defined moment |
+| Integrity hashing and read-only artifacts | Proposed by assistant, 2026-10-07 | R20 asks to keep track of content used. Hashing is what makes that claim checkable rather than assumed |
+| `ghosted` as a distinct terminal status | Proposed by assistant, 2026-10-07 | Silence is the most common outcome; folding it into `rejected` destroys the only signal about which channels work |
 
 If any of these is unwanted it can be removed without affecting a stated requirement, with two exceptions: the two-pass design, which R11 depends on, and the proposals inbox, which R13.3 depends on.
 
@@ -58,3 +65,4 @@ If any of these is unwanted it can be removed without affecting a stated require
 | RK-5 optimistic `depth` | [spec-02 §3.5](spec-02-agent-pipeline.md), [spec-04 §6.3](spec-04-api-and-ui.md) |
 | RK-6 corpus growth | [spec-02 §2](spec-02-agent-pipeline.md), [open-questions.md](open-questions.md) OQ-2 |
 | RK-7 NDA leakage | [spec-01 §3.3](spec-01-knowledge-base.md), [spec-05 §7](spec-05-latex-rendering.md) |
+| RK-8 dual-identity duplicate applications | [spec-07 §8](spec-07-applications-and-tracker.md) |

@@ -220,6 +220,44 @@ Subscription auth is preferred. Because enforcement behavior is unverified, the 
 **AC-R16.1** — Given v1, When the user interacts conversationally, Then it is via text chat.
 **AC-R16.2** — Given the v2 backlog, When reviewed, Then speech-to-text KB dictation is recorded as a deferred item with its implementation sketch.
 
+### R17 — Two contact sets, both resumes rendered every run
+
+> "I need two set of contanct details mail 1 and number 1 ,mail 2 and number 2. i will use one to apply for jobs with referal and other for jobs without referal (for same jd) and when resume is created I need it to be created with both set ,so I can use one resume for referal and one i can apply right away without any referals"
+
+**AC-R17.1** — Given `kb/identity.yaml` defines named contact sets, When it is loaded, Then each set carries its own email and phone and is selectable by name.
+**AC-R17.2** — Given a completed run with two contact sets configured, When export runs, Then two resumes are produced — one per set — differing only in the contact block.
+**AC-R17.3** — Given two contact sets, When a run executes, Then the agent pipeline runs once, not twice, since the tailored content is identical across sets.
+**AC-R17.4** — Given only one contact set is configured, When export runs, Then exactly one resume is produced and no error occurs.
+
+### R18 — Deterministic, collision-free application archive
+
+> "dowlonading the resumes should create a folder with jd, details and etc and download both cvs under that folders should be unqiue so maybe a combinstion of jobrole,jobid if avaialbe,date of applicatoin can be used to create the folder. it should be something like comapny/jobrole-jobid-date/cv1-referal,cv2-nonreferal something like this hirearcy . So when I open the folder I can easier identify the cvs under the companies I have applied"
+
+**AC-R18.1** — Given an application is recorded, When its folder is created, Then the path is `applications/<company>/<role>-<discriminator>-<date>/` holding the job description, both resumes, and the tracker record.
+**AC-R18.2** — Given a posting with no job ID, When the folder name is derived, Then a stable 6-character hash of the job URL or posting text is used, producing the same name on a re-run of the same posting.
+**AC-R18.3** — Given two applications that would resolve to the same folder name, When the second is created, Then it is suffixed `-2` and no existing folder is overwritten.
+**AC-R18.4** — Given a company name containing path separators, punctuation, or non-ASCII characters, When slugified, Then the result is a safe lowercase path component, and casing alone never produces two folders for one company.
+**AC-R18.5** — Given applications exist across several months, When `_views/by-month/` is regenerated, Then each month lists symlinks to that month's applications without altering the canonical tree.
+
+### R19 — Application tracker
+
+> "I need a tracker I can use by default .In which I can track the job I have applied resume used and if referals recived the referals recived"
+
+**AC-R19.1** — Given recorded applications, When the tracker is opened, Then each row shows company, role, application date, status, which contact set was sent, and whether a referral was received.
+**AC-R19.2** — Given the tracker, When the user filters by company, status, month, or referral received, Then only matching applications are listed.
+**AC-R19.3** — Given an application, When the user updates its status, adds an interview stage, or records referral details, Then the change is written to `application.yaml` and the frozen artifacts are untouched.
+**AC-R19.4** — Given the derived index is deleted, When the tracker is next opened, Then it is rebuilt from the `application.yaml` files with no data loss.
+**AC-R19.5** — Given an `application.yaml` edited by hand, When a reindex runs, Then the tracker reflects the edit.
+
+### R20 — Immutable content snapshot
+
+> "also which keep track of the resumes content so if I get any further comminications for further stages I can refer to the content I have used to apply"
+
+**AC-R20.1** — Given an application is recorded, When the snapshot is written, Then it contains the rendered bullets, their source fact IDs, and the full fact body text as it read at that moment.
+**AC-R20.2** — Given a KB fact is edited after an application was recorded, When that application's snapshot is viewed, Then it shows the content as sent, not the current content.
+**AC-R20.3** — Given a recorded application, When its integrity is verified, Then stored hashes are compared against the artifacts on disk and any drift is reported.
+**AC-R20.4** — Given an application detail view, When opened, Then the snapshot is shown alongside the current KB so divergence since sending is visible.
+
 ---
 
 ## 6. Quality requirements
@@ -251,6 +289,7 @@ Subscription auth is preferred. Because enforcement behavior is unverified, the 
 | RK-5 | `depth` fields filled in optimistically | Over-claiming returns through the back door | `depth` surfaced in the review UI next to each bullet; Validator flags `exposure` facts framed as expertise |
 | RK-6 | Corpus growth degrades selection quality | Silent omissions return as the KB gets large | Track corpus token count; OQ-2 defines the threshold for revisiting semantic search |
 | RK-7 | NDA content reaches an export | Professional and legal exposure | `visibility` enforced at render time, not selection time, and asserted in tests |
+| RK-8 | Applying twice to one role under different contact details trips ATS deduplication, or reads as duplicate applying to a recruiter who sees both | Application discarded, or a poor impression | Not a technical problem to solve. The tracker records `contact_set_sent` per application so the user knows which identity reached which company, and decides for themselves ([spec-07 §8](spec-07-applications-and-tracker.md)) |
 
 ## 9. Appendix — current resume content inventory
 

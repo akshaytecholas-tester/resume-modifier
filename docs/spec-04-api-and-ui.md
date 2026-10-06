@@ -66,6 +66,20 @@ PUT /api/kb/{type}/{id}
 | `GET` | `/api/runs/{id}/export.pdf` | Compiled PDF |
 | `GET` | `/api/runs/{id}/export.tex` | LaTeX source for Overleaf |
 | `POST` | `/api/runs/{id}/kb-proposals/{pid}/accept` | Apply a proposed KB change via §2 |
+| `POST` | `/api/runs/{id}/promote` | Freeze the run into an application ([spec-07 §9](spec-07-applications-and-tracker.md)) |
+
+### Applications and tracker
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/applications` | Tracker list; filters for company, status, month, referral received |
+| `GET` | `/api/applications/{id}` | One application: record, snapshot reference, artifact list |
+| `PATCH` | `/api/applications/{id}` | Update status, stages, referral, `contact_set_sent` |
+| `GET` | `/api/applications/{id}/snapshot` | The frozen content as sent |
+| `GET` | `/api/applications/{id}/verify` | Re-hash artifacts, report drift |
+| `POST` | `/api/applications/reindex` | Rebuild the SQLite index and `_views/` |
+
+`PATCH` accepts only the mutable fields in [spec-07 §4.2](spec-07-applications-and-tracker.md); an attempt to modify a frozen field returns `409` naming the field, rather than being silently dropped.
 
 ### System
 
@@ -132,7 +146,17 @@ List with facet filters and search; entry editor in two modes (AC-R13.1):
 
 Unknown tags prompt to add to the vocabulary rather than silently creating an orphan (AC-R10.2). A history panel per entry exposes the git log with revert.
 
-### 6.6 Proposals inbox
+### 6.6 Tracker (R19)
+Sortable table over all applications — company, role, applied date, status, contact set sent, referral received, last stage. Filters for company, status, month, and referral. Status is editable inline; adding an interview stage opens a small form.
+
+A status-pipeline summary sits above the table (how many at screening, interview, offer), because the count that matters when deciding whether to keep applying is how many are live, not how many were sent.
+
+### 6.7 Application detail (R20)
+The frozen record for one application: both resumes, the job description as applied against, the gap report, and the stage history.
+
+The snapshot is shown **beside the current KB**, with facts whose text has changed since sending marked as diverged (AC-R20.4). That comparison is the feature — walking into a later-stage interview, what matters is what the interviewer read, and the diff shows exactly where today's KB would mislead you.
+
+### 6.8 Proposals inbox
 Agent-proposed KB changes — Recall's tag proposals (AC-R10.4), chat-derived new facts — as reviewable diffs. Accept routes through §2 like any other write.
 
 ## 7. Frontend

@@ -27,6 +27,7 @@ REQUIRED_FILES = [
     "spec-04-api-and-ui.md",
     "spec-05-latex-rendering.md",
     "spec-06-provider-backends.md",
+    "spec-07-applications-and-tracker.md",
     "traceability.md",
     "open-questions.md",
     "validate_docs.py",
