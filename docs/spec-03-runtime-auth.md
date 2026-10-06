@@ -103,6 +103,8 @@ env -u ANTHROPIC_API_KEY .venv/bin/python spike/auth_probe.py
 | SDK fails auth; CLI succeeds | Enforcement is real; fallback is required | `cli` |
 | Both fail | Local Claude Code login is broken | Neither — fix `claude` login first |
 
+**Result, 2026-10-06: the SDK succeeded with no API key present** — including with every `CLAUDE_CODE_*` session variable stripped. Default backend is therefore `sdk`. Full record in [open-questions.md](open-questions.md) OQ-1.
+
 The result, the exact error text, and the date are recorded in [open-questions.md](open-questions.md) OQ-1. Enforcement behavior can change, so the record needs a date attached to be worth anything later.
 
 ## 4. Cost and rate limits

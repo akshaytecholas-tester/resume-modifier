@@ -4,24 +4,39 @@ Each entry names the decision it blocks and when it must be answered. An open qu
 
 ---
 
-## OQ-1 — Does the Agent SDK accept a Pro/Max subscription session?
+## OQ-1 — Does the Agent SDK accept a Pro/Max subscription session? — **RESOLVED: yes**
 
-**Blocks:** default `RunnerBackend`; whether an API key and a cost budget are needed at all.
-**Resolve by:** implementation step 1, before any other code.
-**Method:** [spec-03 §3](spec-03-runtime-auth.md) spike protocol.
-
-Documentation is genuinely ambiguous. Acceptable use says Pro/Max limits "assume ordinary, individual usage of Claude Code **and the Agent SDK**", while the SDK docs steer developers to API keys and bar routing requests "on behalf of their users". A single-user local tool is not the latter — but third-party reports describe server-side enforcement, and reading documentation is not the same as running the code.
-
-**Record on resolution** — dated, because enforcement behavior can change and an undated answer is worthless in six months:
+**Resolved:** 2026-10-06, by `spike/auth_probe.py`.
+**Decision:** `spec-03` default backend → **`sdk`**.
 
 ```
-Date tested:
-SDK without API key:   [ok | failed]   error:
-CLI subprocess:        [ok | failed]   error:
-Backend selected:
+claude-agent-sdk   0.2.163
+claude CLI         2.1.291
+ANTHROPIC_API_KEY  absent (run under `env -u ANTHROPIC_API_KEY`)
+
+SDK path           ok, reply "OK",  8,131 input tokens (lean config)
+CLI path (control) ok, reply "OK",  7,994 input tokens
 ```
 
-**Partial result, 2026-10-06.** The CLI path is confirmed working on subscription auth: `claude -p --output-format json` returns a result and usage counts, at 8,004 input tokens per call once configured leanly ([spec-06 §2](spec-06-provider-backends.md)). The SDK path remains untested — the CLI working says nothing about whether the SDK accepts the same session, which is what this question asks.
+Re-run with **every** `CLAUDE_CODE_*` session variable also stripped — in case the
+subprocess was inheriting credentials from the surrounding Claude Code session —
+and it still succeeded at 7,618 tokens. That rules out the main confound.
+
+Two incidental corrections to the commonly-repeated description of this mechanism:
+
+- **`~/.claude/.credentials.json` does not exist on this machine.** macOS stores
+  the subscription credential in the Keychain. Any backend that probes for that
+  file to decide whether subscription auth is available will wrongly conclude it
+  is not.
+- The CLI here lives at `~/.local/bin/claude`, not an npm global path, so
+  `npm install -g @anthropic-ai/claude-code` is one install route rather than a
+  requirement.
+
+**Policy, unchanged by this result:** the test shows the SDK *works*; it does not
+change what is *permitted*. Personal single-user use is ordinary individual use
+([spec-03 §1](spec-03-runtime-auth.md)). Distributing a tool that routes other
+people's requests through these credentials is not, which is why
+[spec-06](spec-06-provider-backends.md) exists.
 
 ---
 
