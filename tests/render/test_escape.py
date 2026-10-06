@@ -1,0 +1,108 @@
+"""LaTeX escaping (spec-05 §3.1).
+
+Every string here appears in the source resume or its date lines, so these are
+regression tests against real content rather than invented edge cases.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from resume_tailor.render.escape import (
+    TEX_ESCAPES,
+    TexSafe,
+    escape_tex,
+    join_tex,
+    tex_raw,
+)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("C# (.NET Core)", r"C\# (.NET Core)"),
+        ("40% faster", r"40\% faster"),
+        ("AI & Data Engineering", r"AI \& Data Engineering"),
+        ("snake_case", r"snake\_case"),
+        ("$100", r"\$100"),
+        ("{braced}", r"\{braced\}"),
+        ("~approx", r"\textasciitilde{}approx"),
+        ("x^2", r"x\textasciicircum{}2"),
+        ("95%+ first-pass", r"95\%+ first-pass"),
+        ("2,000+ concurrent", "2,000+ concurrent"),
+    ],
+)
+def test_reserved_characters(raw: str, expected: str) -> None:
+    assert str(escape_tex(raw)) == expected
+
+
+def test_backslash_is_not_double_escaped() -> None:
+    """The failure spec-05 §3.1 warns about.
+
+    A sequential replace chain rewrites `\\` to `\\textbackslash{}` and then
+    escapes the braces it just introduced, producing
+    `\\textbackslash\\{\\}`. One regex pass cannot, because a replacement is
+    never rescanned.
+    """
+    assert str(escape_tex("a\\b")) == r"a\textbackslash{}b"
+    assert "\\{" not in str(escape_tex("a\\b"))
+
+
+def test_every_reserved_character_is_covered() -> None:
+    for char in TEX_ESCAPES:
+        assert str(escape_tex(char)) == TEX_ESCAPES[char]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (
+            "Classify → Retrieve → Generate",
+            r"Classify $\rightarrow$ Retrieve $\rightarrow$ Generate",
+        ),
+        ("Feb 2026 – Present", "Feb 2026 -- Present"),
+        ("Consultant — xpar.in", "Consultant --- xpar.in"),
+        ("“Captain Extraordinary”", "``Captain Extraordinary''"),
+        ("zero​width", "zerowidth"),
+        ("non breaking", "non~breaking"),
+    ],
+)
+def test_unicode_is_translated_not_passed_through(raw: str, expected: str) -> None:
+    """Keeps the generated .tex ASCII so it compiles under any engine.
+
+    A raw U+2192 compiles here, where Tectonic runs XeTeX, and fails for
+    someone whose Overleaf project is set to pdfLaTeX — which AC-R7.2 forbids.
+    """
+    assert str(escape_tex(raw)) == expected
+
+
+def test_output_is_ascii_for_realistic_content() -> None:
+    body = "Architected RAG pipelines (Classify → Retrieve → Generate) — 50% faster"
+    str(escape_tex(body)).encode("ascii")  # raises if any byte survived untranslated
+
+
+def test_escaping_is_idempotent() -> None:
+    once = escape_tex("a & b")
+    assert escape_tex(once) == once
+
+
+def test_none_becomes_empty() -> None:
+    assert str(escape_tex(None)) == ""
+
+
+def test_result_is_marked_safe() -> None:
+    assert isinstance(escape_tex("x"), TexSafe)
+    assert not isinstance("x", TexSafe)
+
+
+def test_tex_raw_is_not_escaped() -> None:
+    assert str(tex_raw(r"\href{a}{b}")) == r"\href{a}{b}"
+    assert isinstance(tex_raw("x"), TexSafe)
+
+
+def test_join_escapes_items_but_not_the_separator() -> None:
+    assert str(join_tex(["a&b", "c%d"], " | ")) == r"a\&b | c\%d"
+
+
+def test_numbers_are_accepted() -> None:
+    assert str(escape_tex(40)) == "40"

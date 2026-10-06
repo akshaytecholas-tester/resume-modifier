@@ -94,6 +94,13 @@ class BaseEntry(BaseModel):
     metrics: list[Metric] = Field(default_factory=list)
     related: list[Slug] = Field(default_factory=list)
     locked_phrasing: str | None = None
+    #: Author-chosen display order within a parent; lower comes first.
+    #: Unset sorts last, then by id, so ordering is always deterministic.
+    #:
+    #: Only the baseline render and ties obey it. A tailored run orders bullets
+    #: by relevance to the posting, which is the Writer's job and changes per
+    #: job description — this is the default when no posting is involved.
+    order: int | None = None
 
     @field_validator("tags")
     @classmethod
@@ -188,6 +195,11 @@ class SkillDeclaration(BaseModel):
     skill: Slug
     depth: Depth
     evidence: list[Slug] = Field(min_length=1)
+    #: Presentation grouping for the rendered Skills section ("Languages",
+    #: "Backend & Cloud"). Editorial and user-controlled: the taxonomy's facets
+    #: describe what a term *is*, which is not the same as how a reader wants
+    #: skills grouped on a page. Falls back to the facet when unset.
+    group: str | None = None
 
 
 class TaxonomyTerm(BaseModel):
