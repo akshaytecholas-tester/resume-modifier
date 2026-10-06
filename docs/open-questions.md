@@ -66,14 +66,15 @@ Provisional trigger to re-examine: **500 entries or 100K corpus tokens**, whiche
 
 ---
 
-## OQ-3 — Is `runs/` git-tracked?
+## OQ-3 — Is `runs/` git-tracked? — **RESOLVED: no**
 
-**Blocks:** `.gitignore` contents; repo size growth.
+**Resolved:** 2026-10-07, forced by the application archive and a public repository.
 
-**For tracking:** a record of every application and what was sent, which is genuinely useful when a recruiter calls back about a resume sent three months ago.
-**Against:** compiled PDFs are binary and inflate the repo; most runs are throwaway experiments.
+Neither `runs/` nor `applications/` is tracked. `applications/` holds complete resumes carrying both contact sets, job descriptions, and third-party referrer names; the repository is public, so tracking it would publish all of that permanently ([spec-07 §10](spec-07-applications-and-tracker.md)).
 
-**Leaning:** track the text artifacts (`posting.txt`, `analysis.json`, `selection.json`, `draft.json`, `chat.jsonl`), ignore `*.pdf` and `*.tex` since both are reproducible from the artifacts. Needs confirmation.
+The earlier leaning — track text artifacts, ignore binaries — was written before the archive existed and assumed `runs/` held only scratch output. It would now leak PII.
+
+Durability comes from plain files in a backed-up home directory, not from version control. The archive is designed to survive the tool, not the repository.
 
 ---
 
@@ -106,6 +107,18 @@ Until decided, the strict rule stands. Over-blocking is recoverable; leaking isn
 [spec-02 §5](spec-02-agent-pipeline.md) assigns provisionally: strongest model for Analyst, Selector, Recall, and Writer; a smaller model for the Validator, which is a checking task.
 
 **Untested assumption:** that a smaller model is adequate for validation. It might be *better* — less inclined to rationalize a claim into being supported — or materially worse at noticing subtle unsupported inference. Worth an A/B once there's a real corpus and a few real drafts to check against.
+
+---
+
+## OQ-8 — Retention: does an application record ever get archived or deleted?
+
+**Blocks:** nothing yet. Becomes real after a year or two of use.
+
+The archive grows monotonically and nothing prunes it. Each application is a few hundred KB, so a thousand of them is well under a gigabyte — storage is not the concern.
+
+**The actual question is signal, not space.** A tracker listing 800 applications, 700 of them long-dead, is harder to use than one showing the 30 that are live. Options: a `hidden` flag that the default view filters out, a year-based move into `applications/_archive/<year>/`, or nothing at all with reliance on status filters.
+
+**Leaning:** status filters are probably sufficient, since `ghosted` and `rejected` already separate dead from live. Revisit once there is enough real history to tell whether the tracker actually feels cluttered — guessing now would be designing for an imagined problem.
 
 ---
 

@@ -50,6 +50,29 @@ resume-tailor/
 
 `identity.yaml` is separate because it is the only PII-dense file; isolating it makes it trivial to exclude if the repo is ever pushed to a remote.
 
+### 2.1 `identity.yaml` — named contact sets
+
+One identity, several contact sets. The referral and direct application channels use different details (R17):
+
+```yaml
+name: Your Full Name
+headline: Your Role / Title
+location: City, Country
+contacts:
+  referral: {email: first@example.com,  phone: "+00 0000000000"}
+  direct:   {email: second@example.com, phone: "+00 1111111111"}
+default_set: direct
+links:
+  linkedin: linkedin.com/in/your-handle
+  website: yoursite.com
+```
+
+Validation: at least one set; each set needs an email or a phone, or both; `default_set` must name an existing set.
+
+**Back-compatible.** A flat top-level `email`/`phone` with no `contacts` block is read as a single set named `default`, so an existing one-contact file keeps working untouched — and a user who never needs two sets never has to learn about them.
+
+`links` sit outside `contacts` because LinkedIn and a personal site are the same regardless of which channel an application goes through; only the email and phone differ.
+
 ## 3. Entry schemas
 
 ### 3.1 Role (container)

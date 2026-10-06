@@ -11,14 +11,18 @@ evidence/
 *.docx
 
 # --- Generated output -------------------------------------------------
-# Per-JD runs. Text artifacts may be tracked later (open-questions OQ-3);
-# compiled output never is, since it is reproducible from the artifacts.
-runs/**/*.pdf
-runs/**/*.tex
+# Neither runs/ nor applications/ is tracked (open-questions OQ-3, resolved
+# 2026-10-07). applications/ holds complete resumes with both contact sets,
+# job descriptions, and third-party referrer names; this repo is public.
+runs/
+applications/
 .cache/
 
 # --- Environment ------------------------------------------------------
+# Both spellings, at any depth: .venv/, venv/, spike/venv/ all match.
 .venv/
+venv/
+env/
 __pycache__/
 *.pyc
 .env

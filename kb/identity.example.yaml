@@ -8,8 +8,31 @@
 name: Your Full Name
 headline: Your Role / Title
 location: City, Country
-phone: "+00 0000000000"
-email: you@example.com
+
+# Named contact sets. Every configured set gets its own rendered resume, so
+# one run produces one file per set (spec-07 §8). Use this when different
+# application channels should carry different details — for example a
+# referral channel and a direct one.
+#
+# Each set needs an email, a phone, or both. `default_set` must name one.
+contacts:
+  referral:
+    email: first@example.com
+    phone: "+00 0000000000"
+  direct:
+    email: second@example.com
+    phone: "+00 1111111111"
+default_set: direct
+
+# Only need one set of details? Delete the `contacts` and `default_set` blocks
+# above and put a flat email/phone here instead. They are read as a single set
+# named `default`, and exactly one resume is rendered:
+#
+#   email: you@example.com
+#   phone: "+00 0000000000"
+
+# Profile links are shared across all contact sets — only email and phone
+# differ between them.
 links:
   linkedin: linkedin.com/in/your-handle
   github: github.com/your-handle
