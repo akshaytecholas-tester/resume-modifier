@@ -1,0 +1,16 @@
+# Template for kb/identity.yaml, which is gitignored because it holds PII.
+#
+#     cp kb/identity.example.yaml kb/identity.yaml
+#
+# The renderer reads these values into the resume header and contact line.
+# Every field is optional except `name`; omitted fields are left out of the
+# rendered header rather than printed empty.
+name: Your Full Name
+headline: Your Role / Title
+location: City, Country
+phone: "+00 0000000000"
+email: you@example.com
+links:
+  linkedin: linkedin.com/in/your-handle
+  github: github.com/your-handle
+  website: yoursite.com

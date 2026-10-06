@@ -1,0 +1,31 @@
+# --- Personal data: stays local, never pushed -------------------------
+# identity.yaml is the only PII-dense file in the project (spec-01 §2).
+# Copy identity.example.yaml to identity.yaml and fill it in.
+kb/identity.yaml
+
+# Supporting evidence: certificates, offer letters, reference docs
+evidence/
+
+# Source resumes and any PDF/DOCX dropped in for bootstrapping
+*.pdf
+*.docx
+
+# --- Generated output -------------------------------------------------
+# Per-JD runs. Text artifacts may be tracked later (open-questions OQ-3);
+# compiled output never is, since it is reproducible from the artifacts.
+runs/**/*.pdf
+runs/**/*.tex
+.cache/
+
+# --- Environment ------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+node_modules/
+dist/
+.vite/
+
+.DS_Store
