@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "resume-tailor"
+version = "0.1.0"
+description = "Local, single-user resume tailoring over a plain-file career knowledge base"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.9",
+    "ruamel.yaml>=0.18",
+    "jinja2>=3.1",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7"]
+
+[project.scripts]
+rt = "resume_tailor.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/resume_tailor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: hits a real model backend or the network; excluded by default",
+]
+addopts = "-m 'not live'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
