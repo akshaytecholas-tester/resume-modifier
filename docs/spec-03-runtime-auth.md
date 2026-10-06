@@ -121,7 +121,19 @@ The result, the exact error text, and the date are recorded in [open-questions.m
 
 ≈50K input, ≈8K output per run, materially reduced by caching on repeat runs in a session. Order of magnitude: cents to low tens of cents per tailored resume. Figures are estimates to be replaced with measured values after the spike.
 
-## 5. Prompt caching
+## 5. Harness overhead
+
+A coding CLI ships a large system prompt this pipeline does not use. Measured 2026-10-06, `claude -p "Reply with exactly: OK"`:
+
+| Configuration | Input tokens |
+|---|---|
+| Default | 38,841 |
+| Custom system prompt, dynamic sections excluded, built-in tools disallowed | 18,436 |
+| Also `--strict-mcp-config --mcp-config '{"mcpServers":{}}' --setting-sources ""` | **8,004** |
+
+Both CLI and SDK backends must apply the lean configuration in [spec-06 §2](spec-06-provider-backends.md). The Agent SDK is already lean by default — `system_prompt` defaults to `None` and Claude Code's prompt is opt-in — but `setting_sources` must be set to `[]` explicitly, or the user's MCP servers load and cost ~10K tokens per call.
+
+## 6. Prompt caching
 
 The corpus is stable; the JD changes every run. Prompts are therefore ordered **corpus first, JD last**, so the expensive prefix is cacheable across the Selector and Recall calls within a run and across runs within the cache TTL.
 
