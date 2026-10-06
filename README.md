@@ -2,7 +2,7 @@
 
 A local, single-user system that tailors a resume to a job description from a complete personal career knowledge base — then shows what matched, what's missing, and lets you revise by chat before exporting a PDF.
 
-**Status:** specification phase. No application code yet. The documents below are the deliverable; implementation starts after they're approved.
+**Status:** implementation underway. The specification is complete and merged; the knowledge base layer is built. See [Milestones](#milestones).
 
 ## The problem it solves
 
@@ -37,20 +37,81 @@ These are load-bearing, and all three are easy to regress toward their opposite:
 
 ## Local setup
 
-Clone, then create the one file that is deliberately not in the repo:
-
 ```bash
-cp kb/identity.example.yaml kb/identity.yaml
-$EDITOR kb/identity.yaml          # name, phone, email, links
+brew install tectonic                 # LaTeX engine, ~70MB (needed from M2 on)
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
 ```
 
-`kb/identity.yaml` is gitignored. It is the only PII-dense file in the project ([spec-01 §2](docs/spec-01-knowledge-base.md)) — contact details live there and are referenced from everywhere else, so nothing personal ends up in the repo or in git history.
+Then create the knowledge base. **It is not in this repository**, by design:
 
-It supports **named contact sets**, so different application channels can carry different email and phone details, and every configured set gets its own rendered resume ([spec-07 §8](docs/spec-07-applications-and-tracker.md)). A flat `email`/`phone` works too and renders a single resume.
+```bash
+mkdir -p kb/{roles,facts,projects,blogs,education,certifications,awards}
+cp kb/identity.example.yaml kb/identity.yaml
+$EDITOR kb/identity.yaml              # name, contact sets, links
+git init kb                           # versioning, with NO remote — see below
+.venv/bin/rt kb validate
+```
 
-`applications/` — the archive of what was actually sent, plus the tracker — is gitignored for the same reason: it holds complete resumes, job descriptions, and referrer names.
+### Why `kb/` has its own git repository
 
-The rest of `kb/` is also local by nature: it holds a personal career record. `.gitignore` additionally excludes `evidence/` (certificates, letters), source resume PDFs, compiled output under `runs/`, and the usual environment directories.
+This repository is **public**. `kb/` holds a complete career record — every
+employer, location, date and achievement, plus the working notes written
+against them. None of that should be indexable under its owner's name.
+
+But the design needs git: history, diff and one-click revert come from commits
+rather than from a hand-rolled undo stack (AC-R8.3, [spec-04 §3](docs/spec-04-api-and-ui.md)),
+and three different writers touch those files — the browser, a text editor, and
+agent-proposed changes.
+
+So `kb/` is versioned by its own repository, which has **no remote**. Both
+properties hold at once: full history locally, nothing published. The outer
+`.gitignore` excludes everything under `kb/` except `identity.example.yaml`,
+which a fresh clone needs.
+
+**Do not add a remote to `kb/`.** That single action is what would publish the
+career record, and nothing else in the design prevents it.
+
+### What else stays local
+
+| Path | Why |
+|---|---|
+| `kb/` | The career record, and `identity.yaml`'s contact details |
+| `applications/` | Complete resumes, job descriptions, third-party referrer names |
+| `runs/` | Disposable tailoring output; reproducible from `kb/` |
+| `evidence/` | Certificates and letters |
+| `*.pdf`, `*.docx` | Source resumes dropped in for bootstrapping |
+
+Durability for all of these comes from being plain files in a backed-up home
+directory, not from version control ([open-questions OQ-3](docs/open-questions.md)).
+
+## Using it
+
+```bash
+.venv/bin/rt kb validate      # the ten rules of spec-01 §4
+.venv/bin/rt kb stats         # corpus size and shape — the numbers OQ-2 tracks
+.venv/bin/rt kb index         # rebuild .cache/index.json; safe at any time
+```
+
+## Milestones
+
+| | Milestone | State |
+|---|---|---|
+| M1 | Knowledge base: schema, loader, validation, bootstrap | **done** |
+| M2 | LaTeX template and PDF output | next |
+| M3 | Runner backends behind one interface | |
+| M4 | The five-agent pipeline, end to end from a CLI | |
+| M5 | FastAPI write path and SSE | |
+| M6 | React UI | |
+| M7 | Application archive and tracker | |
+
+## Tests
+
+```bash
+.venv/bin/pytest -q            # live-backend tests are excluded by default
+.venv/bin/pytest -q -m live    # hits a real model backend
+.venv/bin/ruff check src tests
+```
 
 ## Validating the docs
 
@@ -62,4 +123,6 @@ Stdlib only. Fails on untraced requirements, acceptance criteria without Given/W
 
 ## Next step
 
-The auth spike in [spec-03 §3](docs/spec-03-runtime-auth.md) — it determines whether this runs on the existing Claude subscription or needs an API key, and it runs before any other implementation work.
+M2: the LaTeX template, reproducing the source resume's layout from the
+knowledge base so the output is familiar rather than merely correct
+([spec-05 §4](docs/spec-05-latex-rendering.md)).
