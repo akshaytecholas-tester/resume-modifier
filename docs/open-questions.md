@@ -21,6 +21,21 @@ CLI subprocess:        [ok | failed]   error:
 Backend selected:
 ```
 
+**Partial result, 2026-10-06.** The CLI path is confirmed working on subscription auth: `claude -p --output-format json` returns a result and usage counts, at 8,004 input tokens per call once configured leanly ([spec-06 §2](spec-06-provider-backends.md)). The SDK path remains untested — the CLI working says nothing about whether the SDK accepts the same session, which is what this question asks.
+
+---
+
+## OQ-7 — Does the ChatGPT **Free** plan include Codex **CLI** access?
+
+**Blocks:** whether Codex is a viable zero-cost backend for other people using this tool. Does not block anything for the repo owner.
+**Resolve by:** before documenting Codex as a free option for others.
+
+Verified 2026-10-06 on this machine: `codex exec --json --skip-git-repo-check` works, model `gpt-5.5`, 272,000-token context, strict-JSON prompt returned a bare parseable object. 18,365 input tokens of harness overhead per call.
+
+**What that does not prove:** the plan this account is on. OpenAI's pricing page states Codex is *"included in your ChatGPT Free, Go, Plus, Pro, Business, Edu, or Enterprise plan"*, while listing CLI access among what the paid tiers add. So Free-tier **CLI** eligibility is unconfirmed, and a working test on a possibly-paid account cannot settle it.
+
+Needs a test from an actual Free account before Codex is documented as a free path for others.
+
 ---
 
 ## OQ-2 — At what corpus size does full-corpus selection stop working?
@@ -87,5 +102,6 @@ Until decided, the strict rule stands. Over-blocking is recoverable; leaking isn
 | — | Single PRD or PRD + specs? | PRD + five companion specs | 2026-10-06 |
 | — | Commit to one runtime backend? | No — pluggable interface, spike decides the default | 2026-10-06 |
 | — | Vector DB for the KB? | No — full-corpus selection; revisit per OQ-2 | 2026-10-06 |
+| — | Fall back to Antigravity CLI? | No — Codex verified working; Antigravity free tier is ~20 req/day | 2026-10-06 |
 | — | Tags as the retrieval mechanism? | No — tags are for humans and audit; selection is semantic over full content | 2026-10-06 |
 | — | LaTeX as source of truth? | No — KB is source of truth; LaTeX is generated | 2026-10-06 |

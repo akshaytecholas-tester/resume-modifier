@@ -19,8 +19,8 @@ Every requirement maps to the user's own words, to testable acceptance criteria,
 | R11 | Semantic selection over full content, never tag-gated | "it shouldn't be just checking the tags , tags is just one part, we might miss a tag but for the jd it's might be a required project,experinece or skills with in an job experinece so it should be taken ,should not just focus on the tags" | AC-R11.1, AC-R11.2, AC-R11.3, AC-R11.4 | [spec-02 §1](spec-02-agent-pipeline.md), [spec-02 §2](spec-02-agent-pipeline.md), [spec-02 §3.2](spec-02-agent-pipeline.md), [spec-01 §6](spec-01-knowledge-base.md) |
 | R12 | Multi-agent: creating, validating, reviewing | "This should be a multi agentic system with multiple agaents creating validating and going through things that matters" | AC-R12.1, AC-R12.2, AC-R12.3 | [spec-02 §3](spec-02-agent-pipeline.md), [spec-02 §4](spec-02-agent-pipeline.md) |
 | R13 | KB updated by chat and by manual web-UI editing | "I should have option to talk and update my knowledge also manually edit knowledge base through intractive web UI" | AC-R13.1, AC-R13.2, AC-R13.3, AC-R13.4 | [spec-04 §2](spec-04-api-and-ui.md), [spec-04 §6.5](spec-04-api-and-ui.md), [spec-04 §6.6](spec-04-api-and-ui.md) |
-| R14 | Light React frontend, Python backend and SDK | "I need a light frontend framework like react or a better optimised version and python for backend and sdk" | AC-R14.1, AC-R14.2 | [spec-04 §1](spec-04-api-and-ui.md), [spec-04 §4](spec-04-api-and-ui.md), [spec-04 §7](spec-04-api-and-ui.md) |
-| R15 | Subscription-preferred, pluggable runtime | "using claude sdk and the current subscription I have to leverage" | AC-R15.1, AC-R15.2, AC-R15.3 | [spec-03 §2](spec-03-runtime-auth.md), [spec-03 §3](spec-03-runtime-auth.md) |
+| R14 | Light React frontend, Python backend and SDK | "I need a light frontend framework like react or a better optimised version and python for backend and sdk" | AC-R14.1, AC-R14.2 | [spec-04 §1](spec-04-api-and-ui.md), [spec-04 §4](spec-04-api-and-ui.md), [spec-04 §7](spec-04-api-and-ui.md), [spec-06 §1](spec-06-provider-backends.md) |
+| R15 | Subscription-preferred, pluggable runtime | "using claude sdk and the current subscription I have to leverage" | AC-R15.1, AC-R15.2, AC-R15.3 | [spec-03 §2](spec-03-runtime-auth.md), [spec-03 §3](spec-03-runtime-auth.md), [spec-06](spec-06-provider-backends.md) |
 | R16 | Text chat in v1; voice deferred | "I should have option to talk and update my knowledge" — scoped to text chat by decision 2026-10-06 | AC-R16.1, AC-R16.2 | [PRD §3](PRD.md) |
 
 ## Reverse check — did we invent anything?
@@ -51,7 +51,7 @@ If any of these is unwanted it can be removed without affecting a stated require
 
 | Risk | Mitigation lives in |
 |---|---|
-| RK-1 auth uncertainty | [spec-03 §1](spec-03-runtime-auth.md), [spec-03 §3](spec-03-runtime-auth.md) |
+| RK-1 auth uncertainty | [spec-03 §1](spec-03-runtime-auth.md), [spec-03 §3](spec-03-runtime-auth.md), [spec-06](spec-06-provider-backends.md) |
 | RK-2 rate limits | [spec-02 §6](spec-02-agent-pipeline.md), [spec-03 §4](spec-03-runtime-auth.md) |
 | RK-3 blocked job boards | [spec-04 §3](spec-04-api-and-ui.md) |
 | RK-4 LaTeX fidelity drift | [spec-05 §4](spec-05-latex-rendering.md) |
