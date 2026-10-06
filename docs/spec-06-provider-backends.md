@@ -25,6 +25,8 @@ Measured on this machine, 2026-10-06, with the prompt `"Reply with exactly: OK"`
 | + `--system-prompt`, `--exclude-dynamic-system-prompt-sections`, built-in tools disallowed | 18,436 | residual is MCP server tool schemas |
 | + `--strict-mcp-config --mcp-config '{"mcpServers":{}}' --setting-sources ""` | **8,004** | irreducible Claude Code baseline |
 | `codex exec --json`, default | 18,365 | Codex harness; 2,432 cached |
+| Agent SDK, `allowed_tools=[]` only | 18,184 | **does not restrict tools** — see below |
+| Agent SDK, `+ disallowed_tools=[…]` | **7,753** | matches the CLI floor |
 
 **A stripped CLI call costs ~79% less than a default one.** At five agents per run that is the difference between ~194K and ~40K tokens of pure overhead, before any of your content.
 
@@ -43,7 +45,7 @@ CLI flags, and their Agent SDK equivalents:
 **The Agent SDK defaults are already lean.** `system_prompt` defaults to `None`, and Claude Code's prompt is opt-in via `{"type": "preset", "preset": "claude_code"}` — which this project never passes. Two defaults still need overriding:
 
 - `setting_sources=None` loads user, project, and local settings, which drags in the user's MCP servers. **Pass `[]` explicitly.** This is the single largest saving (18.4K → 8.0K above).
-- `allowed_tools` does *not* restrict Claude to those tools; unlisted tools fall through to `permission_mode`. Use `disallowed_tools` to actually remove them.
+- `allowed_tools` does *not* restrict Claude to those tools; unlisted tools fall through to `permission_mode`. Use `disallowed_tools` to actually remove them. **Measured 2026-10-06:** `allowed_tools=[]` alone cost 18,184 input tokens; adding `disallowed_tools` brought it to 7,753. The first probe written for this project had exactly this bug, which is why it is called out rather than left as a footnote.
 
 ## 3. Backends
 
