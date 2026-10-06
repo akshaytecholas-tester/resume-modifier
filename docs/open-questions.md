@@ -110,6 +110,37 @@ Until decided, the strict rule stands. Over-blocking is recoverable; leaking isn
 
 ---
 
+## OQ-9 — Is `kb/` tracked in the public repository? — **RESOLVED: no, it has its own remote-less repo**
+
+**Resolved:** 2026-10-07, when the bootstrap produced real content.
+
+`kb/` is versioned by its own git repository, which has no remote. The project
+repository is public and ignores everything under `kb/` except
+`identity.example.yaml`, which a fresh clone needs.
+
+The original design said `kb/` was git-tracked, and isolating `identity.yaml`
+was treated as sufficient privacy. That held only while `kb/` contained an
+example file. With the real bootstrap in place it does not: the career record —
+employers, locations, dates, achievements, and the working notes written against
+them — would be published and indexed under the owner's name. The notes are the
+worse half; they are candid by design and read badly out of context.
+
+Dropping git instead was the alternative, and it costs more than it looks:
+AC-R8.3's undo, the history and revert endpoints in
+[spec-04 §3](spec-04-api-and-ui.md), and reviewable agent-proposed diffs all come
+from commits. A separate remote-less repository keeps all of that and publishes
+none of it.
+
+This is the same correction as OQ-3, arriving for the same reason: a tracking
+decision made before the content existed stopped being safe once it did.
+
+**The residual risk is one command.** `git -C kb remote add …` publishes
+everything, and no other part of the design prevents it. Documented in
+[spec-01 §2.2](spec-01-knowledge-base.md) and the README; worth a
+`/api/health` warning once that endpoint exists.
+
+---
+
 ## OQ-8 — Retention: does an application record ever get archived or deleted?
 
 **Blocks:** nothing yet. Becomes real after a year or two of use.

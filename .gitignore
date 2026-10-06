@@ -1,7 +1,16 @@
 # --- Personal data: stays local, never pushed -------------------------
-# identity.yaml is the only PII-dense file in the project (spec-01 §2).
-# Copy identity.example.yaml to identity.yaml and fill it in.
-kb/identity.yaml
+# The whole knowledge base stays local. This repository is PUBLIC, and kb/
+# holds the complete career record: every employer, location, date and
+# achievement, plus the working notes written against them. None of that
+# should be indexable under the owner's name.
+#
+# kb/ is versioned instead by its OWN git repository, which has no remote, so
+# history, diff and revert all keep working (AC-R8.3, spec-04 §3) without
+# anything being published. See README -> Local setup.
+#
+# Only the template is tracked here, because a fresh clone needs it.
+kb/*
+!kb/identity.example.yaml
 
 # Supporting evidence: certificates, offer letters, reference docs
 evidence/

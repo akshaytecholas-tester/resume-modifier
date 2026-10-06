@@ -21,7 +21,7 @@
 
 ```
 resume-tailor/
-├── kb/                          # authored truth — git-tracked
+├── kb/                          # authored truth — versioned by its OWN repo (§2.2)
 │   ├── identity.yaml            # name, contact, links (PII, isolated)
 │   ├── taxonomy.yaml            # controlled vocabulary
 │   ├── skills.yaml              # declared proficiency → evidence fact ids
@@ -48,7 +48,7 @@ resume-tailor/
 └── .cache/                      # derived, rebuildable
 ```
 
-`identity.yaml` is separate because it is the only PII-dense file; isolating it makes it trivial to exclude if the repo is ever pushed to a remote.
+`identity.yaml` is separate because it is the only *contact*-dense file; isolating it keeps email and phone out of every other file. It is not, on its own, sufficient isolation — see §2.2.
 
 ### 2.1 `identity.yaml` — named contact sets
 
@@ -72,6 +72,33 @@ Validation: at least one set; each set needs an email or a phone, or both; `defa
 **Back-compatible.** A flat top-level `email`/`phone` with no `contacts` block is read as a single set named `default`, so an existing one-contact file keeps working untouched — and a user who never needs two sets never has to learn about them.
 
 `links` sit outside `contacts` because LinkedIn and a personal site are the same regardless of which channel an application goes through; only the email and phone differ.
+
+### 2.2 `kb/` is versioned, and local
+
+`kb/` has its own git repository, with **no remote**. The project repository is
+public and ignores everything under `kb/` except `identity.example.yaml`.
+
+Two requirements pull in opposite directions and both are real:
+
+- **Git is load-bearing.** History, diff and one-click revert come from commits
+  rather than a hand-rolled undo stack (AC-R8.3, [spec-04 §3](spec-04-api-and-ui.md)).
+  Three writers touch these files — the browser, a text editor, and
+  agent-proposed changes — so a change needs to be reviewable and reversible.
+- **The content must not be published.** `kb/` is the complete career record:
+  employers, locations, dates, achievements, and the working notes written
+  against them. Those notes are candid by design and read badly out of context,
+  which is exactly the material that should not be indexable under the owner's
+  name.
+
+A separate remote-less repository satisfies both. It is an unusual layout, so
+it is documented here and in the README rather than left to be discovered.
+
+**The failure mode is one command.** Adding a remote to `kb/` publishes
+everything, and nothing else in the design prevents it. Isolating
+`identity.yaml` was never enough on its own: contact details are the smaller
+exposure, and the career record is the larger one.
+
+Decided 2026-10-07; recorded as [open-questions.md](open-questions.md) OQ-9.
 
 ## 3. Entry schemas
 
