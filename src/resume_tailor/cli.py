@@ -432,5 +432,38 @@ def _guess_role(posting: str) -> str:
     return "posting"
 
 
+@app.command("serve")
+def serve(
+    root: Path | None = ROOT_OPTION,
+    port: int = typer.Option(8000, "--port"),
+    reload: bool = typer.Option(False, "--reload", help="Restart on code changes."),
+) -> None:
+    """Run the local web interface.
+
+    Binds 127.0.0.1 only, never 0.0.0.0 (AC-R1.2). This process has filesystem
+    write access and an authenticated model session; putting it on the LAN
+    would hand both to anyone on the network.
+    """
+    import uvicorn
+
+    base, _, _ = _resolve(root)
+    typer.secho(f"  http://127.0.0.1:{port}", fg=typer.colors.GREEN, bold=True)
+    typer.echo(f"  serving {base}")
+    if not (base / "web" / "dist").is_dir():
+        typer.secho(
+            "  no web/dist yet — API only (the UI is M6). Try /api/health.",
+            fg=typer.colors.YELLOW,
+        )
+
+    uvicorn.run(
+        "resume_tailor.api.app:create_app",
+        factory=True,
+        host="127.0.0.1",
+        port=port,
+        reload=reload,
+        log_level="info",
+    )
+
+
 if __name__ == "__main__":
     app()
