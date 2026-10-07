@@ -17,10 +17,15 @@ dependencies = [
     # for unless told otherwise. The other backends are subprocesses or plain
     # HTTP and need no package.
     "claude-agent-sdk>=0.2",
+    # M5. uvicorn is a runtime dependency rather than a dev one because
+    # `rt serve` is how the tool is actually used.
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "watchdog>=5.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "httpx>=0.27"]
 
 [project.scripts]
 rt = "resume_tailor.cli:app"
@@ -47,3 +52,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # Typer declares CLI options as argument defaults; that IS the library's idiom,
 # and the alternative ruff suggests would make every command noisier.
 "src/resume_tailor/cli.py" = ["B008"]
+# FastAPI declares request bodies and query params as argument defaults, the
+# same way Typer declares options. That IS the library's idiom.
+"src/resume_tailor/api/app.py" = ["B008"]

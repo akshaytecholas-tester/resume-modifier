@@ -297,6 +297,7 @@ source of truth — it is all reproducible from `kb/` plus the posting.
 | M5 | FastAPI write path and SSE | next |
 | M6 | React UI | |
 | M7 | Application archive and tracker | |
+| M8 | Self-hosted Langfuse tracing and prompt evals ([OQ-10](docs/open-questions.md)) | |
 
 ## Tests
 

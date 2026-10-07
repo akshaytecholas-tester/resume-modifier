@@ -53,6 +53,33 @@ Needs a test from an actual Free account before Codex is documented as a free pa
 
 ---
 
+## OQ-10 — Tracing: Langfuse — **DECIDED: yes, self-hosted, after M7**
+
+**Decided:** 2026-10-07. Scheduled as M8, after the archive and tracker.
+
+Per-run artifacts on disk already answer *what did this run do*: every stage
+writes its JSON to `runs/<id>/` and nothing is hidden. What they do not answer
+is *did prompt v2 select better than v1*, because comparing runs means diffing
+directories by hand and there is no place for an eval set to live.
+
+That question is the one blocking [OQ-6](#oq-6--which-model-for-which-agent)
+(which model for which agent) and it will block any serious prompt tuning, so
+the tooling has to exist before either can be settled.
+
+**Hard constraint: self-hosted, never the managed cloud.** [PRD §7](PRD.md)
+says no knowledge-base content leaves the machine except in the model API call
+made by the user's own session. Traces carry the full corpus in the prompt —
+every employer, date and achievement — so sending them to a hosted endpoint
+would breach that constraint far more comprehensively than the thing the
+constraint was written about.
+
+**Open sub-questions, for when it is built:** whether tracing is opt-in or on
+by default; whether it wraps `RunnerBackend` (one place, backend-agnostic) or
+each backend separately; and whether the eval set lives in the repository, which
+it cannot if the cases are built from real postings and the real corpus.
+
+---
+
 ## OQ-2 — At what corpus size does full-corpus selection stop working?
 
 **Blocks:** whether semantic search is ever needed; the point at which [spec-02 §2](spec-02-agent-pipeline.md) must be revisited.
