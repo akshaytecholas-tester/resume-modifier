@@ -35,6 +35,182 @@ These are load-bearing, and all three are easy to regress toward their opposite:
 2. **The knowledge base is the source of truth; LaTeX is generated from it.** Agents edit structured data, never `.tex`.
 3. **Every claim traces to a recorded fact.** A validator with no stake in making the resume look good cuts anything that doesn't.
 
+## How it works
+
+Three views: what the agents do, how the code is layered, and where everything
+runs. All three are current as of M4 — the pipeline is built; the API and UI
+are not.
+
+### The multi-agent pipeline
+
+```mermaid
+flowchart TD
+    JD["Job posting<br/><i>pasted text or URL</i>"]
+    KB[("kb/<br/><i>full corpus</i>")]
+
+    JD --> ANALYST["<b>Analyst</b><br/>decompose into atomic requirements<br/><i>explicit and implicit</i>"]
+    ANALYST --> REQ["requirements.json"]
+
+    REQ --> SELECTOR["<b>Selector</b><br/>judge every fact on its body text"]
+    REQ --> RECALL["<b>Recall</b><br/>adversarial: find what pass 1 missed"]
+
+    KB -.->|"full bodies,<br/>never an index"| SELECTOR
+    KB -.->|"full bodies,<br/>never an index"| RECALL
+    SELECTOR -->|"which facts,<br/><b>not why</b>"| RECALL
+
+    SELECTOR --> MERGE{{"<b>merge</b><br/>union + provenance<br/><i>disagreements surfaced,<br/>never resolved</i>"}}
+    RECALL --> MERGE
+
+    MERGE --> SELECTION["merged.json<br/><i>chosen_by: both / selector / recall</i>"]
+    MERGE --> GAPS["gap-report.md<br/><i>absent · weak · tag proposals</i>"]
+
+    SELECTION --> WRITER["<b>Writer</b><br/>compress and retarget<br/><i>narrow input, by design</i>"]
+    WRITER --> DRAFT["draft.json"]
+
+    DRAFT --> VALIDATOR["<b>Validator</b><br/>grounding only, no stake in<br/>the resume looking good"]
+    VALIDATOR --> VALIDATION["validation.json<br/><i>cuts · warnings</i>"]
+
+    VALIDATION --> REVIEW["Review<br/><i>matches, gaps, draft</i>"]
+    REVIEW --> CHAT["Chat revision"]
+    CHAT -->|"always re-validates"| WRITER
+    REVIEW --> RENDER["LaTeX → PDF<br/><i>one per contact set</i>"]
+
+    classDef agent fill:#1f3a5f,stroke:#4a90d9,stroke-width:2px,color:#fff
+    classDef artifact fill:#2d2d2d,stroke:#888,color:#eee
+    classDef store fill:#3d2b1f,stroke:#c08040,color:#fff
+    class ANALYST,SELECTOR,RECALL,WRITER,VALIDATOR agent
+    class REQ,SELECTION,DRAFT,VALIDATION,GAPS artifact
+    class KB store
+```
+
+**Why two selection passes.** The failure this product exists to prevent is
+silent omission: a relevant fact that no model ever read, whose absence nobody
+notices. One pass with a tag filter in front of it would be cheaper and would
+reintroduce exactly that. So both passes read every word of every fact, and
+where they disagree the review screen says so rather than a merger picking a
+winner.
+
+**Why the Writer gets less.** Selection and writing have opposite information
+needs. Selection wants full fidelity, because relevance hides in any clause.
+Writing wants a narrow input, because irrelevant material makes bullets
+blander. Conflating them produces an index-based selector, which is the
+omission again.
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph entry["Entry points"]
+        CLI["<b>rt</b> CLI<br/><i>kb · render · tailor · health</i>"]
+        API["FastAPI<br/><i>127.0.0.1 only</i><br/><b>M5</b>"]
+        UI["React + Vite<br/><b>M6</b>"]
+    end
+
+    subgraph core["Core"]
+        PIPELINE["<b>pipeline/</b><br/>orchestrator · merge · artifacts · report"]
+        AGENTS["<b>agents/</b><br/>5 specs + editable prompts"]
+        RENDER["<b>render/</b><br/>document · latex · escape · compile"]
+        APPS["<b>applications/</b><br/>slug · snapshot · tracker<br/><b>M7</b>"]
+    end
+
+    subgraph kb["Knowledge base"]
+        LOADER["<b>kb/</b><br/>schema · loader · validate · write"]
+        FILES[("kb/*.md + *.yaml<br/><i>plain files, own git repo</i>")]
+        CACHE[(".cache/index.json<br/><i>derived, never authoritative</i>")]
+    end
+
+    subgraph runtime["runtime/ — one interface, five backends"]
+        BASE["<b>RunnerBackend</b><br/><i>string in, JSON out</i>"]
+        SDK["claude_sdk<br/><i>default</i>"]
+        CLIB["claude_cli"]
+        CODEX["codex_cli"]
+        COMPAT["openai_compat<br/><i>Ollama, OpenRouter, …</i>"]
+        FAKE["fake<br/><i>tests</i>"]
+    end
+
+    UI --> API
+    API --> PIPELINE
+    CLI --> PIPELINE
+    CLI --> RENDER
+    PIPELINE --> AGENTS
+    PIPELINE --> RENDER
+    PIPELINE --> BASE
+    AGENTS --> BASE
+    BASE --> SDK & CLIB & CODEX & COMPAT & FAKE
+    PIPELINE --> LOADER
+    RENDER --> LOADER
+    APPS --> RENDER
+    LOADER --> FILES
+    LOADER -.->|rebuildable| CACHE
+
+    classDef future fill:#2d2d2d,stroke:#666,stroke-dasharray:4 3,color:#999
+    classDef iface fill:#1f3a5f,stroke:#4a90d9,stroke-width:2px,color:#fff
+    class API,UI,APPS future
+    class BASE iface
+```
+
+Two seams carry the weight. **`RunnerBackend`** is the only thing the pipeline
+knows about a model, so swapping Claude for a local model is configuration, not
+a change to any agent. **`Document`** is the only thing the template knows
+about content, so the baseline render and a tailored run produce the same shape
+and the template knows about neither.
+
+Note what is *not* here: no vector store, no database of record, no queue. The
+knowledge base is plain files; `.cache/` is derived and can be deleted at any
+time.
+
+### Where it runs
+
+There is no infrastructure to provision. This is a single-user tool that runs
+entirely on one machine — no server, no container, no cloud account, and no
+Terraform to write. The only thing crossing the network is the model API call
+made by the user's own authenticated session.
+
+```mermaid
+flowchart LR
+    subgraph machine["Your machine — everything below is local"]
+        direction TB
+
+        subgraph proc["Processes"]
+            RT["<b>rt</b> / uvicorn<br/><i>binds 127.0.0.1 only</i>"]
+            TECT["tectonic<br/><i>LaTeX → PDF</i>"]
+        end
+
+        subgraph disk["Filesystem"]
+            KBR[("<b>kb/</b><br/>own git repo<br/><b>no remote</b>")]
+            RUNS[("runs/<br/><i>disposable</i>")]
+            APPSD[("applications/<br/><i>permanent archive</i>")]
+            EVID[("evidence/")]
+        end
+
+        subgraph repo["Public git repo"]
+            CODE["code · docs · templates"]
+        end
+    end
+
+    SUB["Anthropic API<br/><i>your subscription session</i>"]
+    BOARD["Job board<br/><i>optional, for URL ingest</i>"]
+
+    RT -->|"the only outbound<br/>model traffic"| SUB
+    RT -.->|optional| BOARD
+    RT --> TECT
+    RT <--> KBR
+    RT --> RUNS
+    RT --> APPSD
+    RT -.-> EVID
+    CODE -.->|"gitignores all<br/>of the above"| KBR
+
+    classDef remote fill:#3d2b1f,stroke:#c08040,color:#fff
+    classDef private fill:#1f3a2d,stroke:#4ad98a,color:#fff
+    class SUB,BOARD remote
+    class KBR,RUNS,APPSD,EVID private
+```
+
+The green stores never leave the machine. `kb/` is versioned by its own git
+repository that has **no remote** — full history locally, nothing published —
+because the public repo would otherwise carry the complete career record. The
+single action that would undo that is `git -C kb remote add`.
+
 ## Local setup
 
 ```bash
@@ -88,20 +264,29 @@ directory, not from version control ([open-questions OQ-3](docs/open-questions.m
 ## Using it
 
 ```bash
-.venv/bin/rt kb validate      # the ten rules of spec-01 §4
-.venv/bin/rt kb stats         # corpus size and shape — the numbers OQ-2 tracks
-.venv/bin/rt kb index         # rebuild .cache/index.json; safe at any time
+.venv/bin/rt kb validate                 # the ten rules of spec-01 §4
+.venv/bin/rt kb stats                    # corpus size — the numbers OQ-2 tracks
+.venv/bin/rt health                      # backend, auth, Tectonic, context fit
+
+.venv/bin/rt render                      # the whole KB, no agents involved
+.venv/bin/rt tailor --file posting.txt   # the five-agent pipeline
+.venv/bin/rt tailor --resume <run-id>    # continue from the last completed stage
 ```
+
+A `tailor` run writes everything it did into `runs/<id>/`: the requirements it
+extracted, both selection passes, the merge, the draft, the validation, the gap
+report, and a PDF per contact set. Nothing is hidden, and nothing there is a
+source of truth — it is all reproducible from `kb/` plus the posting.
 
 ## Milestones
 
 | | Milestone | State |
 |---|---|---|
 | M1 | Knowledge base: schema, loader, validation, bootstrap | **done** |
-| M2 | LaTeX template and PDF output | next |
-| M3 | Runner backends behind one interface | |
-| M4 | The five-agent pipeline, end to end from a CLI | |
-| M5 | FastAPI write path and SSE | |
+| M2 | LaTeX template and PDF output | **done** |
+| M3 | Runner backends behind one interface | **done** |
+| M4 | The five-agent pipeline, end to end from a CLI | **done** |
+| M5 | FastAPI write path and SSE | next |
 | M6 | React UI | |
 | M7 | Application archive and tracker | |
 
@@ -123,6 +308,6 @@ Stdlib only. Fails on untraced requirements, acceptance criteria without Given/W
 
 ## Next step
 
-M2: the LaTeX template, reproducing the source resume's layout from the
-knowledge base so the output is familiar rather than merely correct
-([spec-05 §4](docs/spec-05-latex-rendering.md)).
+M5: the FastAPI write path and SSE ([spec-04](docs/spec-04-api-and-ui.md)), so
+the knowledge base can be edited in a browser and a run's progress streams
+while it happens.
