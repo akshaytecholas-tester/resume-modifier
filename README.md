@@ -45,18 +45,21 @@ are not.
 
 ```mermaid
 flowchart TD
-    JD["Job posting<br/><i>pasted text or URL</i>"]
-    KB[("kb/<br/><i>full corpus</i>")]
-
-    JD --> ANALYST["<b>Analyst</b><br/>decompose into atomic requirements<br/><i>explicit and implicit</i>"]
+    JD["Job posting"] --> ANALYST["<b>Analyst</b><br/>atomic requirements<br/><i>explicit + implicit</i>"]
     ANALYST --> REQ["requirements.json"]
+    KB[("kb/ — full corpus")]
 
-    REQ --> SELECTOR["<b>Selector</b><br/>judge every fact on its body text"]
-    REQ --> RECALL["<b>Recall</b><br/>adversarial: find what pass 1 missed"]
+    subgraph passes["Two independent passes — run concurrently"]
+        direction LR
+        SELECTOR["<b>Selector</b><br/>judge every fact<br/>on its body text"]
+        RECALL["<b>Recall</b><br/>adversarial:<br/>find what was missed"]
+    end
 
-    KB -.->|"full bodies,<br/>never an index"| SELECTOR
-    KB -.->|"full bodies,<br/>never an index"| RECALL
-    SELECTOR -->|"which facts,<br/><b>not why</b>"| RECALL
+    REQ --> SELECTOR
+    REQ --> RECALL
+    KB -.->|"full bodies, never an index"| SELECTOR
+    KB -.->|"full bodies, never an index"| RECALL
+    SELECTOR -.->|"--sequential only:<br/>which facts, <b>not why</b>"| RECALL
 
     SELECTOR --> MERGE{{"<b>merge</b><br/>union + provenance<br/><i>disagreements surfaced,<br/>never resolved</i>"}}
     RECALL --> MERGE
@@ -66,13 +69,12 @@ flowchart TD
 
     SELECTION --> WRITER["<b>Writer</b><br/>compress and retarget<br/><i>narrow input, by design</i>"]
     WRITER --> DRAFT["draft.json"]
-
-    DRAFT --> VALIDATOR["<b>Validator</b><br/>grounding only, no stake in<br/>the resume looking good"]
+    DRAFT --> VALIDATOR["<b>Validator</b><br/>grounding only"]
     VALIDATOR --> VALIDATION["validation.json<br/><i>cuts · warnings</i>"]
 
-    VALIDATION --> REVIEW["Review<br/><i>matches, gaps, draft</i>"]
+    VALIDATION --> REVIEW["Review"]
     REVIEW --> CHAT["Chat revision"]
-    CHAT -->|"always re-validates"| WRITER
+    CHAT -.->|"always re-validates"| WRITER
     REVIEW --> RENDER["LaTeX → PDF<br/><i>one per contact set</i>"]
 
     classDef agent fill:#1f3a5f,stroke:#4a90d9,stroke-width:2px,color:#fff
@@ -89,6 +91,12 @@ notices. One pass with a tag filter in front of it would be cheaper and would
 reintroduce exactly that. So both passes read every word of every fact, and
 where they disagree the review screen says so rather than a merger picking a
 winner.
+
+By default the two run **concurrently**, which halves wall-clock time on the
+stage that dominates it; Recall then judges the corpus blind. With
+`--sequential` it instead receives the Selector's picks — *which* facts, never
+*why* — because a second pass handed the first pass's argument mostly agrees
+with it.
 
 **Why the Writer gets less.** Selection and writing have opposite information
 needs. Selection wants full fidelity, because relevance hides in any clause.
