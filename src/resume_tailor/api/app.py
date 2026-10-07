@@ -304,6 +304,48 @@ def _router(context: Context) -> APIRouter:  # noqa: C901 — one route per endp
         asyncio.create_task(_execute(context, run, posting, payload))
         return {"run_id": run.id, "events": f"/api/runs/{run.id}/events"}
 
+    @router.post("/runs/{run_id}/chat")
+    async def runs_chat(run_id: str, payload: dict = Body(...)) -> dict[str, Any]:
+        run = _run_or_404(context, run_id)
+        if not run.has("draft"):
+            raise NotFound(
+                f"run {run_id} has no draft to revise yet",
+                remedy="Wait for the writer stage to finish.",
+            )
+        message = (payload.get("message") or "").strip()
+        if not message:
+            raise WriteError("no message", remedy="Say what you want changed.")
+
+        asyncio.create_task(_revise(context, run, message))
+        return {"run_id": run.id, "events": f"/api/runs/{run.id}/events"}
+
+    @router.get("/runs/{run_id}/chat")
+    async def runs_chat_history(run_id: str) -> dict[str, Any]:
+        run = _run_or_404(context, run_id)
+        return {"turns": run.read("chat") if run.has("chat") else []}
+
+    @router.get("/runs/{run_id}/gap-report")
+    async def runs_gap_report(run_id: str) -> dict[str, Any]:
+        run = _run_or_404(context, run_id)
+        path = run.directory / "gap-report.md"
+        return {"markdown": path.read_text(encoding="utf-8") if path.is_file() else ""}
+
+    @router.get("/identity")
+    async def identity_read() -> dict[str, Any]:
+        from ..kb.identity import load_identity
+
+        path = context.kb_dir / "identity.yaml"
+        if not path.is_file():
+            return {"configured": False, "contact_sets": []}
+        identity = load_identity(path)
+        return {
+            "configured": True,
+            "name": identity.name,
+            "headline": identity.headline,
+            "contact_sets": identity.set_names,
+            "default_set": identity.default_set,
+        }
+
     @router.get("/runs/{run_id}/export.tex")
     async def runs_export_tex(run_id: str, contact_set: str = Query(None)) -> FileResponse:
         return FileResponse(_export(context, run_id, contact_set, compile_to_pdf=False))
@@ -384,6 +426,31 @@ async def _execute(context: Context, run: Run, posting: str, payload: dict) -> N
                 "code": type(exc).__name__,
                 "resumable": bool(run.completed_stages()),
             },
+        )
+
+
+async def _revise(context: Context, run: Run, message: str) -> None:
+    """Chat revision, streamed on the same channel as the original run."""
+    hub = context.hub
+
+    def progress(stage: str, status: str, detail: dict) -> None:
+        hub.publish_stage(run.id, stage, status, detail)
+
+    try:
+        pipeline = Pipeline(
+            build_backend(context.config), context.corpus(), context.config, on_progress=progress
+        )
+        result = await pipeline.revise(run, message)
+        (run.directory / "gap-report.md").write_text(
+            render_gap_report(
+                result.requirements, result.selection, result.gaps, result.validation
+            ),
+            encoding="utf-8",
+        )
+        hub.run(run.id).publish("done", {"run_id": run.id, "clean": result.clean, "revision": True})
+    except Exception as exc:
+        hub.run(run.id).publish(
+            "error", {"message": str(exc), "code": type(exc).__name__, "resumable": True}
         )
 
 

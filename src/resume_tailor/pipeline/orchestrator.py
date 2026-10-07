@@ -16,6 +16,7 @@ resumable rather than a restart.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -26,7 +27,7 @@ from ..kb.loader import Corpus
 from ..runtime.base import AgentSpec, RunnerBackend, Usage
 from .artifacts import Run
 from .corpus import estimate_tokens, render_corpus, render_selected
-from .merge import Selection, gap_report, merge
+from .merge import SelectedFact, Selection, gap_report, merge
 
 #: Stage lifecycle events, for the CLI and later for SSE (spec-04 §4).
 Progress = Callable[[str, str, dict[str, Any]], None]
@@ -280,6 +281,90 @@ class Pipeline:
                 "per_agent": {name: vars(u) for name, u in self.per_agent.items()},
             },
         )
+
+        return RunResult(
+            run=run,
+            requirements=requirements,
+            selection=selection,
+            draft=draft,
+            validation=validation,
+            gaps=gaps,
+            usage=self.usage,
+            per_agent=self.per_agent,
+        )
+
+    async def revise(
+        self,
+        run: Run,
+        instruction: str,
+        *,
+        bullets: int = 9,
+    ) -> RunResult:
+        """Re-enter at the Writer with a chat instruction (R5, spec-02 §4).
+
+        **Always re-runs the Validator.** Chat can never bypass validation, or
+        "just add that I led the team" writes an unsupported claim straight
+        into the document (AC-R5.2).
+
+        If the instruction needs a fact that does not exist, the Validator cuts
+        whatever the Writer invented and says why — which is the honest answer,
+        and the cue to add the fact to the knowledge base rather than to the
+        resume.
+        """
+        requirements = run.read("requirements")
+        merged = run.read("merged")
+        selection = Selection(
+            facts=[
+                SelectedFact(
+                    fact_id=f["fact_id"],
+                    chosen_by=f["chosen_by"],
+                    requirement_ids=f.get("requirement_ids") or [],
+                    strength=f.get("strength") or "moderate",
+                    reason=f.get("reason"),
+                    argument=f.get("argument"),
+                    depth=f.get("depth"),
+                )
+                for f in merged["facts"]
+            ],
+            rejected=merged.get("considered_and_rejected") or [],
+            tag_proposals=merged.get("tag_proposals") or [],
+        )
+
+        history = run.read("chat") if run.has("chat") else []
+        history.append({"role": "user", "text": instruction})
+
+        previous = run.read("draft")
+        prompt = (
+            f"{_requirements_block(requirements)}\n\n"
+            f"{_selection_block(selection)}\n\n"
+            "# YOUR PREVIOUS DRAFT\n\n"
+            f"{json.dumps(previous, indent=2, ensure_ascii=False)}\n\n"
+            "# REVISION REQUESTED\n\n"
+            + "\n".join(f"- {turn['text']}" for turn in history if turn["role"] == "user")
+            + "\n\nRewrite the resume applying the requested changes. Every constraint "
+            "still holds: no claim that is not in a source fact, numbers only from "
+            "`metrics`, and `depth` is still a ceiling. If a request needs a fact that "
+            "does not exist, leave it out — do not invent it."
+        )
+
+        # The previous draft and validation are replaced, not appended to, so
+        # the artifacts always describe the current state of the document.
+        run.write("draft-previous", previous)
+        draft = await self._call(
+            "writer", prompt, cache_prefix=render_selected(self.corpus, selection.fact_ids)
+        )
+        run.write("draft", draft)
+
+        run.path("validation").unlink(missing_ok=True)
+        validation = await self.validate(run, draft, selection)
+
+        history.append(
+            {"role": "assistant", "text": "draft revised", "clean": validation.get("clean")}
+        )
+        run.write("chat", history)
+
+        gaps = gap_report(requirements, selection)
+        run.write("gaps", gaps)
 
         return RunResult(
             run=run,

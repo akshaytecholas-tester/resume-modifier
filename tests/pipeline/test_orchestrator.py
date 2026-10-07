@@ -272,3 +272,71 @@ def test_unknown_stage_names_the_real_ones(tmp_path: Path) -> None:
     run = Run.create(tmp_path / "runs", "stages")
     with pytest.raises(ValueError, match="requirements"):
         run.path("nonsense")
+
+
+# -- chat revision ---------------------------------------------------------
+
+REVISED = {
+    "summary": "Revised.",
+    "sections": [
+        {
+            "kind": "experience",
+            "role_id": "acme-engineer",
+            "bullets": [{"text": "Shorter.", "sources": ["acme-pipeline"]}],
+        }
+    ],
+}
+
+
+async def test_a_revision_always_revalidates(kb: Path, tmp_path: Path) -> None:
+    """AC-R5.2. Chat cannot bypass validation, or "just add that I led the
+    team" writes an unsupported claim straight into the document."""
+    run = Run.create(tmp_path / "runs", "revise")
+    corpus = load_corpus(kb)
+    await Pipeline(FakeRunner(REPLIES), corpus, Config()).run(run, POSTING)
+
+    runner = FakeRunner({**REPLIES, "writer": REVISED})
+    result = await Pipeline(runner, corpus, Config()).revise(run, "Make it shorter.")
+
+    assert "writer" in runner.calls
+    assert "validator" in runner.calls, "the validator must run again after a revision"
+    assert result.draft["summary"] == "Revised."
+
+
+async def test_the_revision_prompt_carries_the_previous_draft(kb: Path, tmp_path: Path) -> None:
+    run = Run.create(tmp_path / "runs", "revise-prompt")
+    corpus = load_corpus(kb)
+    await Pipeline(FakeRunner(REPLIES), corpus, Config()).run(run, POSTING)
+
+    runner = FakeRunner({**REPLIES, "writer": REVISED})
+    await Pipeline(runner, corpus, Config()).revise(run, "Lead with the pipeline.")
+
+    prompt = runner.calls["writer"][0]
+    assert "YOUR PREVIOUS DRAFT" in prompt
+    assert "Lead with the pipeline." in prompt
+    assert "do not invent it" in prompt
+
+
+async def test_revisions_accumulate_in_the_prompt(kb: Path, tmp_path: Path) -> None:
+    """A second instruction must not silently undo the first."""
+    run = Run.create(tmp_path / "runs", "revise-twice")
+    corpus = load_corpus(kb)
+    await Pipeline(FakeRunner(REPLIES), corpus, Config()).run(run, POSTING)
+
+    for instruction in ("Drop the award.", "Lead with RAG."):
+        runner = FakeRunner({**REPLIES, "writer": REVISED})
+        await Pipeline(runner, corpus, Config()).revise(run, instruction)
+
+    prompt = runner.calls["writer"][0]
+    assert "Drop the award." in prompt and "Lead with RAG." in prompt
+
+
+async def test_the_previous_draft_is_kept_for_comparison(kb: Path, tmp_path: Path) -> None:
+    run = Run.create(tmp_path / "runs", "revise-keep")
+    corpus = load_corpus(kb)
+    await Pipeline(FakeRunner(REPLIES), corpus, Config()).run(run, POSTING)
+    await Pipeline(FakeRunner({**REPLIES, "writer": REVISED}), corpus, Config()).revise(
+        run, "Shorter."
+    )
+    assert run.has("draft-previous")
+    assert run.read("draft-previous")["summary"] == "Backend engineer."
