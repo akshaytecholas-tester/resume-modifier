@@ -228,3 +228,37 @@ def test_a_slow_subscriber_is_dropped_not_awaited() -> None:
             channel.publish("stage", {"i": i})  # must not raise or block
 
     asyncio.run(exercise())
+
+
+# -- chat revision (R5) ----------------------------------------------------
+
+
+def test_chat_before_a_draft_exists_is_refused(client: TestClient) -> None:
+    client.post("/api/runs", json={"text": "A posting."})
+    runs = client.get("/api/runs").json()["runs"]
+    response = client.post(f"/api/runs/{runs[0]['id']}/chat", json={"message": "shorter"})
+    assert response.status_code == 404
+    assert response.json()["remedy"]
+
+
+def test_an_empty_chat_message_is_refused(client: TestClient, project: Path) -> None:
+    from resume_tailor.pipeline.artifacts import Run
+
+    run = Run.create(project / "runs", "chat-run")
+    run.write("draft", {"sections": []})
+    response = client.post("/api/runs/chat-run/chat", json={"message": "   "})
+    assert response.status_code == 400
+
+
+def test_chat_history_is_empty_before_any_turn(client: TestClient, project: Path) -> None:
+    from resume_tailor.pipeline.artifacts import Run
+
+    Run.create(project / "runs", "fresh")
+    assert client.get("/api/runs/fresh/chat").json()["turns"] == []
+
+
+def test_identity_reports_contact_sets(client: TestClient) -> None:
+    """The UI renders one export button per configured set (R17)."""
+    body = client.get("/api/identity").json()
+    assert body["configured"] is True
+    assert body["contact_sets"] == ["default"]

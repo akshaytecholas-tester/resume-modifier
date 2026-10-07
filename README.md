@@ -272,6 +272,7 @@ directory, not from version control ([open-questions OQ-3](docs/open-questions.m
 ## Using it
 
 ```bash
+.venv/bin/rt serve                       # the web interface, 127.0.0.1 only
 .venv/bin/rt kb validate                 # the ten rules of spec-01 §4
 .venv/bin/rt kb stats                    # corpus size — the numbers OQ-2 tracks
 .venv/bin/rt health                      # backend, auth, Tectonic, context fit
@@ -294,10 +295,26 @@ source of truth — it is all reproducible from `kb/` plus the posting.
 | M2 | LaTeX template and PDF output | **done** |
 | M3 | Runner backends behind one interface | **done** |
 | M4 | The five-agent pipeline, end to end from a CLI | **done** |
-| M5 | FastAPI write path and SSE | next |
-| M6 | React UI | |
-| M7 | Application archive and tracker | |
+| M5 | FastAPI write path and SSE | **done** |
+| M6 | React UI | **done** |
+| M7 | Application archive and tracker | next |
 | M8 | Self-hosted Langfuse tracing and prompt evals ([OQ-10](docs/open-questions.md)) | |
+
+## The web interface
+
+```bash
+cd web && npm install && npm run build   # once
+.venv/bin/rt serve                       # http://127.0.0.1:8000
+```
+
+One process, one port: the API under `/api`, the built bundle served from the
+same origin, so there is no CORS configuration to get wrong. In development
+`cd web && npm run dev` runs Vite on 5173 and proxies `/api` to the Python
+process.
+
+Export is disabled until the review screen has been opened (AC-R4.3). The whole
+point is that you see what was cut and what is missing before anything leaves
+the machine.
 
 ## Tests
 
@@ -317,6 +334,7 @@ Stdlib only. Fails on untraced requirements, acceptance criteria without Given/W
 
 ## Next step
 
-M5: the FastAPI write path and SSE ([spec-04](docs/spec-04-api-and-ui.md)), so
-the knowledge base can be edited in a browser and a run's progress streams
-while it happens.
+M7: the application archive and tracker
+([spec-07](docs/spec-07-applications-and-tracker.md)) — promoting a run into a
+permanent record of what was actually sent, with the content frozen so a later
+interview can be prepared against the real thing.

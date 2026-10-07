@@ -29,6 +29,8 @@ ARTIFACTS = {
     "recall": "recall.json",
     "merged": "merged.json",
     "draft": "draft.json",
+    "draft-previous": "draft-previous.json",
+    "chat": "chat.jsonl",
     "validation": "validation.json",
     "gaps": "gaps.json",
     "usage": "usage.json",
