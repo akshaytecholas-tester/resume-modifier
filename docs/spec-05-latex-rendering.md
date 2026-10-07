@@ -68,7 +68,7 @@ layout the author tailored to their own preference, so the renderer reproduces
 it rather than improving on it. Changes to type, spacing or margins happen only
 when the author asks for them.
 
-Everything below is **measured** from `resume_amalkrishn_m_u_ai_python_dev.pdf`
+Everything below is **measured** from the owner's source resume
 with `pdfinfo` and `pdftotext -bbox`, replacing an earlier version of this
 section that was written from memory of the document and was wrong in four
 places — it claimed US Letter, small-caps headings with a horizontal rule, and

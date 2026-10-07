@@ -27,6 +27,10 @@ runs/
 applications/
 .cache/
 
+# Saved tag weightings per role type. They encode what the owner is targeting,
+# which is personal even though it holds no contact details.
+profiles/
+
 # --- Environment ------------------------------------------------------
 # Both spellings, at any depth: .venv/, venv/, spike/venv/ all match.
 .venv/

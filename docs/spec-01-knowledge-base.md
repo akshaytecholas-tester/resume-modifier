@@ -260,6 +260,6 @@ Serialization uses `ruamel.yaml` in round-trip mode so key order, comments, and 
 
 ## 7. Bootstrap
 
-The initial population comes from `resume_amalkrishn_m_u_ai_python_dev.pdf` (inventory in [PRD](PRD.md) §9): 3 roles, 9 facts, 2 internships, 1 degree, 1 certification, 1 award, plus a seeded taxonomy covering the technologies named there.
+The initial population comes from the owner's source resume (inventory in [PRD](PRD.md) §9): 3 roles, 9 facts, 2 internships, 1 degree, 1 certification, 1 award, plus a seeded taxonomy covering the technologies named there.
 
 Bootstrap produces a *starting point*, not a finished KB. Resume bullets are compressed; fact bodies should be expanded with the detail the resume had to cut (P2). The UI's KB browser is where that expansion happens over time, including via chat (R13).

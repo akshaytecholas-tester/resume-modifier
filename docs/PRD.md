@@ -1,7 +1,7 @@
 # PRD — Local Resume Tailoring System
 
 **Status:** Draft for approval
-**Owner:** Amal Krishna M U
+**Owner:** the repository owner
 **Date:** 2026-10-06
 **Companion specs:** [KB](spec-01-knowledge-base.md) · [Agents](spec-02-agent-pipeline.md) · [Runtime](spec-03-runtime-auth.md) · [API/UI](spec-04-api-and-ui.md) · [LaTeX](spec-05-latex-rendering.md)
 **Validation:** [traceability.md](traceability.md) · [open-questions.md](open-questions.md)
@@ -10,7 +10,7 @@
 
 ## 1. Problem
 
-Tailoring a resume per job application is high-value and manually expensive. The current state is a single PDF — `resume_amalkrishn_m_u_ai_python_dev.pdf` — hand-tuned for AI developer roles. It represents a fraction of the actual career record, and every new role type means re-editing a document by hand from memory.
+Tailoring a resume per job application is high-value and manually expensive. The current state is a single PDF, hand-tuned for AI developer roles. It represents a fraction of the actual career record, and every new role type means re-editing a document by hand from memory.
 
 Manual tailoring fails in two directions, and they are not equally visible:
 
@@ -293,7 +293,7 @@ Subscription auth is preferred. Because enforcement behavior is unverified, the 
 
 ## 9. Appendix — current resume content inventory
 
-Extracted from `resume_amalkrishn_m_u_ai_python_dev.pdf` (1 page). This is the bootstrap seed for the KB and the fidelity reference for the LaTeX template.
+Extracted from the owner's source resume, which stays local (1 page). This is the bootstrap seed for the KB and the fidelity reference for the LaTeX template.
 
 **Identity:** held locally in `kb/identity.yaml` — name, headline, location, phone, email, and profile links. That file is gitignored as the only PII-dense file in the project ([spec-01 §2](spec-01-knowledge-base.md)); `kb/identity.example.yaml` is committed and shows its shape. See [README → Local setup](../README.md#local-setup).
 
