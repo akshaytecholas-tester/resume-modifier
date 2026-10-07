@@ -14,7 +14,7 @@ import pytest
 from resume_tailor.kb.loader import load_corpus
 from resume_tailor.kb.validate import validate_corpus
 
-from .conftest import write_entry
+from ..conftest import write_entry
 
 
 def codes(kb: Path, level: str | None = None) -> set[str]:

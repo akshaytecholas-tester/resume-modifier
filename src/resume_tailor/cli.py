@@ -10,10 +10,20 @@ from pathlib import Path
 
 import typer
 
+from .kb.identity import load_identity
 from .kb.index import write_index
 from .kb.loader import load_corpus
 from .kb.paths import repo_root
 from .kb.validate import validate_kb
+from .render.compile import (
+    CompileError,
+    TectonicMissing,
+    check_overflow,
+    compile_pdf,
+    healthcheck,
+)
+from .render.document import VisibilityViolation
+from .render.latex import Geometry, render_baseline
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=__doc__)
 kb_app = typer.Typer(no_args_is_help=True, help="Inspect and validate the knowledge base.")
@@ -107,6 +117,104 @@ def kb_stats(root: Path | None = ROOT_OPTION) -> None:
     hidden = [e.id for e in corpus.entries if e.meta.visibility != "public"]
     if hidden:
         typer.echo(f"\n  non-public (never exported): {', '.join(hidden)}")
+
+
+@app.command("render")
+def render(
+    root: Path | None = ROOT_OPTION,
+    out: Path | None = typer.Option(None, "--out", help="Output directory; default runs/baseline."),
+    contact_set: str | None = typer.Option(
+        None, "--contact-set", help="Render only this set; default renders every configured set."
+    ),
+    summary_file: Path | None = typer.Option(
+        None, "--summary-file", help="Prose for the Summary section. Tailored per JD from M4 on."
+    ),
+    pdf: bool = typer.Option(True, "--pdf/--no-pdf", help="Compile with Tectonic."),
+    budget: int = typer.Option(1, "--budget", help="Page budget; overflow is reported, never cut."),
+) -> None:
+    """Render the whole knowledge base to LaTeX and PDF — no agents involved.
+
+    This is the baseline: everything, in knowledge-base order, with no selection
+    and no rewriting. It is what proves AC-R7.1 and the reference the template
+    is checked against.
+    """
+    base, kb_dir, _ = _resolve(root)
+    corpus = load_corpus(kb_dir)
+    if corpus.parse_errors:
+        typer.secho(
+            "knowledge base has parse errors; run `rt kb validate`", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(1)
+
+    identity_path = kb_dir / "identity.yaml"
+    if not identity_path.is_file():
+        typer.secho(
+            "kb/identity.yaml not found — copy kb/identity.example.yaml to it and fill it in",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2)
+    identity = load_identity(identity_path)
+
+    sets = [contact_set] if contact_set else identity.set_names
+    for name in sets:
+        if name not in identity.contacts:
+            typer.secho(
+                f"no contact set named {name!r}; have: {', '.join(sorted(identity.contacts))}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(2)
+
+    outdir = (out or base / "runs" / "baseline").resolve()
+    outdir.mkdir(parents=True, exist_ok=True)
+    summary = summary_file.read_text(encoding="utf-8").strip() if summary_file else None
+
+    # The defaults ARE the source document's measurements, so there is no
+    # "corrected" variant to opt out of.
+    geometry = Geometry()
+
+    for name in sets:
+        try:
+            doc, tex = render_baseline(corpus, identity, name, summary=summary, geometry=geometry)
+        except VisibilityViolation as exc:
+            typer.secho(f"  {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(1) from exc
+
+        tex_path = outdir / f"resume-{name}.tex"
+        tex_path.write_text(tex, encoding="utf-8")
+        typer.echo(f"  {tex_path.relative_to(base)}  ({len(doc.sources)} sources)")
+
+        if not pdf:
+            continue
+        try:
+            result = compile_pdf(tex_path, outdir)
+        except TectonicMissing as exc:
+            typer.secho(f"  {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2) from exc
+        except CompileError as exc:
+            typer.secho(f"  {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(1) from exc
+
+        typer.echo(f"  {result.pdf.relative_to(base)}")
+        overflow = check_overflow(result, doc, budget=budget)
+        colour = typer.colors.YELLOW if overflow.over else typer.colors.GREEN
+        typer.secho(f"      {overflow.summary()}", fg=colour)
+        for title, lead in overflow.candidates[:5]:
+            typer.echo(f"        cut candidate: {title} - {lead}")
+        for warning in result.overfull[:3]:
+            typer.secho(f"      {warning}", fg=typer.colors.YELLOW)
+
+
+@app.command("health")
+def health(root: Path | None = ROOT_OPTION) -> None:
+    """Render toolchain and corpus status."""
+    base, kb_dir, _ = _resolve(root)
+    for key, value in healthcheck().items():
+        typer.echo(f"  {key:<12} {value}")
+    corpus = load_corpus(kb_dir)
+    typer.echo(f"  {'entries':<12} {len(corpus.entries)}")
+    typer.echo(f"  {'est. tokens':<12} {corpus.estimated_tokens()}")
 
 
 if __name__ == "__main__":

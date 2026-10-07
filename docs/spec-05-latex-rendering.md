@@ -63,33 +63,78 @@ A render-time assertion rejects any content variable that reached the template w
 
 ## 4. Fidelity targets
 
-Reproducing `resume_amalkrishn_m_u_ai_python_dev.pdf` (inventory in [PRD](PRD.md) §9):
+**The source resume is the specification, not a starting point.** It is a
+layout the author tailored to their own preference, so the renderer reproduces
+it rather than improving on it. Changes to type, spacing or margins happen only
+when the author asks for them.
 
-| Element | Target |
+Everything below is **measured** from the owner's source resume
+with `pdfinfo` and `pdftotext -bbox`, replacing an earlier version of this
+section that was written from memory of the document and was wrong in four
+places — it claimed US Letter, small-caps headings with a horizontal rule, and
+dates right-aligned on the title line. None of those is what the document does.
+
+| Element | Measured |
 |---|---|
-| Page | US Letter, single column, ~0.5in margins |
-| Header | Name centered, large; role subtitle beneath |
-| Contact | Single pipe-separated line; email and links hyperlinked |
-| Section headings | Small caps, horizontal rule beneath |
-| Section order | Summary · Technical Skills · Professional Experience · Internships · Education & Certifications |
-| Experience entry | Title — Org \| Location on the left, dates right-aligned on the same line |
-| Bullets | Bold lead-in phrase, then detail — the pattern throughout the current resume |
-| Skills | Grouped bullets with bold group labels |
-| Font | Serif body, ~10–11pt |
+| Page | A4, 595.28 x 841.89bp |
+| Text block | x 36.0 → 581.0, measure 545bp |
+| Margins | left 36bp, right 14.28bp — **asymmetric** |
+| Body | Times New Roman 11bp, 13bp baseline-to-baseline, justified |
+| Name | 16bp bold, all caps, centred on the text block (x=308.5, not the page's 297.6) |
+| Headline | 12bp bold, centred |
+| Contact | 10bp, grey, pipe-separated, email and links hyperlinked in blue |
+| Section headings | 12bp bold, all caps, **no rule, not small caps** |
+| Experience entry | Bold title, em dash, org, then grey `\| location` |
+| Dates | **Their own line beneath the title**, grey italic — not right-aligned |
+| Bullets | Arial-style black circle 8.82bp wide, glyph at x=54, text at x=72 |
+| Bullet text | Bold lead-in phrase, colon, then detail |
+| Emphasis | Key figures bolded inline within prose and bullets |
 
-Built on `article` with `geometry`, `titlesec`, `enumitem`, and `hyperref`. No resume class — `moderncv` and friends impose their own visual identity, and the requirement is to match an existing document rather than adopt a new look.
+The asymmetric margin is the author's and is reproduced exactly. An earlier
+implementation "corrected" it to a symmetric 0.5in on the grounds that a 0.2in
+right margin risks clipping on print. That was not a call to make unasked: it
+narrowed the measure by 4% and silently moved every line break.
 
-### Verification
+Built on `article` with `geometry`, `titlesec`, `enumitem`, `graphicx`,
+`xcolor` and `hyperref`. No resume class — `moderncv` and friends impose their
+own visual identity, and the requirement is to match an existing document.
 
-Since poppler is installed, fidelity is checked visually rather than by eye-memory:
+`newtxtext` supplies a Times clone metrically compatible with the Times New
+Roman the source embeds. Using the real font via `fontspec` would match
+exactly on this machine and fail in Overleaf, where it is not installed —
+which AC-R7.2 forbids.
+
+### 4.1 Lengths are `bp`, never `pt`
+
+A PDF point is 1/72 inch, which TeX calls a **big point** (`bp`). TeX's own
+`pt` is 1/72.27 inch.
+
+Writing a measured `595.28` as `pt` produced a 593.06pt page: every length and
+every glyph 0.37% small. The error is uniform, so it reads as a font-metric
+difference rather than a unit bug, and nothing about the output looks wrong
+until it is measured. Every value in `Geometry` is therefore `bp`, and a test
+asserts it.
+
+### 4.2 Verification is numeric
 
 ```bash
-pdftoppm -png -r 150 resume_amalkrishn_m_u_ai_python_dev.pdf /tmp/orig
-pdftoppm -png -r 150 runs/<slug>/resume.pdf /tmp/new
-# compare /tmp/orig-1.png against /tmp/new-1.png
+python3 scripts/fidelity.py <source>.pdf runs/baseline/resume-<set>.pdf
 ```
 
-Section order, column structure, and bullet style must match. Exact font metrics will not, since the original is a word-processor export — that difference is accepted (RK-4).
+Reports page size, text block, measure, baseline and per-element rendered
+widths, with the ratio against the source. Because glyph width scales linearly
+with font size, that ratio **is** the correction factor.
+
+Comparing PNG renders by eye — which this section previously specified — catches
+gross structural differences and misses a heading one point too large, a measure
+4% narrow, or a baseline off by half a point. All three move line breaks.
+
+Current state: page, text block, measure, baseline and bullet geometry match
+exactly. Per-element widths are within **0.7%**, and that residual is left
+alone deliberately: it is non-uniform and runs in both directions, which is the
+signature of glyph-width differences between `newtx` and real Times New Roman.
+Tuning it away with fractional font sizes would encode a substitution artifact
+as a design value, and be wrong for anyone compiling with the real font.
 
 ## 5. Links and ATS
 
