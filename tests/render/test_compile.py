@@ -24,7 +24,22 @@ TECTONIC = pytest.mark.skipif(not available(), reason="tectonic is not installed
 
 def test_healthcheck_reports_engine_and_cache() -> None:
     report = healthcheck()
-    assert set(report) == {"tectonic", "path", "version", "cache_warm"}
+    assert {"tectonic", "path", "version", "cache_warm"} <= set(report)
+
+
+@TECTONIC
+def test_cache_is_found_where_tectonic_actually_puts_it() -> None:
+    """Tectonic uses the `app_dirs2` crate, which on macOS gives
+    `~/Library/Caches/TectonicProject.Tectonic` — not `.../Tectonic`, which an
+    earlier version looked for and never found.
+
+    It reported a cold cache on a machine compiling in 1.3s, which would have
+    set a 900s timeout on every warm compile.
+    """
+    report = healthcheck()
+    if report["cache_warm"]:
+        assert report["cache_dir"], "cache reported warm but no directory named"
+        assert Path(str(report["cache_dir"])).is_dir()
 
 
 def test_error_is_located_in_the_source() -> None:

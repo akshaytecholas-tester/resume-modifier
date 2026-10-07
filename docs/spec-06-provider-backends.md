@@ -55,7 +55,7 @@ One implementation of `POST /v1/chat/completions` covers Ollama (which serves an
 
 Highest return of any backend: one file, no harness overhead, real schema enforcement where the provider supports it.
 
-### 3.2 `ClaudeCliRunner` / `ClaudeSdkRunner`
+### 3.2 `ClaudeSdkRunner` / `ClaudeCliRunner`
 
 Per [spec-03](spec-03-runtime-auth.md). Subscription auth without an API key; ~8K tokens/call when configured per §2.
 
@@ -122,7 +122,8 @@ Selection and writing degrade *visibly*. The Validator degrades *invisibly* — 
 
 ```toml
 [runtime]
-backend = "claude_cli"          # claude_cli | claude_sdk | codex_cli | openai_compat
+backend = "claude_sdk"          # claude_sdk | claude_cli | codex_cli | openai_compat | fake
+                                # claude_sdk is the default, per OQ-1
 
 [runtime.openai_compat]
 base_url = "http://localhost:11434/v1"

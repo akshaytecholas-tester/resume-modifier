@@ -6,10 +6,12 @@ so validating and inspecting them must not require a running server.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import typer
 
+from .config import Config
 from .kb.identity import load_identity
 from .kb.index import write_index
 from .kb.loader import load_corpus
@@ -24,6 +26,7 @@ from .render.compile import (
 )
 from .render.document import VisibilityViolation
 from .render.latex import Geometry, render_baseline
+from .runtime import BackendError, ContextExceeded, build_backend
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=__doc__)
 kb_app = typer.Typer(no_args_is_help=True, help="Inspect and validate the knowledge base.")
@@ -207,14 +210,57 @@ def render(
 
 
 @app.command("health")
-def health(root: Path | None = ROOT_OPTION) -> None:
-    """Render toolchain and corpus status."""
+def health(
+    root: Path | None = ROOT_OPTION,
+    backend: str | None = typer.Option(None, "--backend", help="Check this backend instead."),
+) -> None:
+    """Model backend, render toolchain and corpus status (spec-04 §3)."""
     base, kb_dir, _ = _resolve(root)
+    config = Config.load(base)
+
+    typer.secho("render", bold=True)
     for key, value in healthcheck().items():
-        typer.echo(f"  {key:<12} {value}")
+        typer.echo(f"  {key:<14} {value}")
+
     corpus = load_corpus(kb_dir)
-    typer.echo(f"  {'entries':<12} {len(corpus.entries)}")
-    typer.echo(f"  {'est. tokens':<12} {corpus.estimated_tokens()}")
+    tokens = corpus.estimated_tokens()
+    typer.secho("\ncorpus", bold=True)
+    typer.echo(f"  {'entries':<14} {len(corpus.entries)}")
+    typer.echo(f"  {'est. tokens':<14} {tokens:,}  (chars/4 — an estimate)")
+
+    typer.secho("\nmodel backend", bold=True)
+    name = backend or config.backend_name()
+    if config.source:
+        typer.echo(f"  {'config':<14} {config.source.relative_to(base)}")
+    try:
+        runner = build_backend(config, name)
+    except BackendError as exc:
+        typer.secho(f"  {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    report = asyncio.run(runner.healthcheck())
+    caps = runner.capabilities
+    typer.echo(f"  {'backend':<14} {report.backend}")
+    typer.echo(f"  {'auth':<14} {report.credential}")
+    typer.echo(f"  {'window':<14} {caps.min_context_tokens:,} tokens")
+    typer.echo(f"  {'overhead':<14} {caps.harness_overhead:,} tokens/call")
+    typer.echo(f"  {'cost':<14} {caps.cost_per_run}")
+    if report.version:
+        typer.echo(f"  {'version':<14} {report.version}")
+    typer.secho(
+        f"  {'status':<14} {'ok' if report.ok else 'unavailable'}"
+        + (f" — {report.detail}" if report.detail else ""),
+        fg=typer.colors.GREEN if report.ok else typer.colors.RED,
+    )
+
+    # The gate that refuses rather than chunks (spec-06 §4). Reported here so a
+    # corpus that has outgrown the model surfaces before a run, not during one.
+    try:
+        caps.assert_corpus_fits(report.backend, tokens)
+        typer.secho(f"  {'context':<14} corpus fits", fg=typer.colors.GREEN)
+    except ContextExceeded as exc:
+        typer.secho(f"  {'context':<14} {exc}", fg=typer.colors.RED)
+        raise typer.Exit(1) from exc
 
 
 if __name__ == "__main__":

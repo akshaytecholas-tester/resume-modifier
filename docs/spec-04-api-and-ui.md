@@ -13,7 +13,7 @@ Binding is `127.0.0.1` explicitly, never `0.0.0.0` (AC-R1.2). This process has f
 
 ## 2. The write path
 
-Every byte that reaches `kb/` goes through these six steps, in order, regardless of whether the origin is the structured form, the raw editor, or an agent-proposed diff (AC-R13.3).
+Every byte that reaches `kb/` goes through these seven steps, in order, regardless of whether the origin is the structured form, the raw editor, or an agent-proposed diff (AC-R13.3).
 
 ```
 PUT /api/kb/{type}/{id}
