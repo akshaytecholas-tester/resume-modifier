@@ -17,6 +17,9 @@ from .kb.index import write_index
 from .kb.loader import load_corpus
 from .kb.paths import repo_root
 from .kb.validate import validate_kb
+from .pipeline.artifacts import Run, run_slug
+from .pipeline.orchestrator import Pipeline
+from .pipeline.report import render_gap_report
 from .render.compile import (
     CompileError,
     TectonicMissing,
@@ -24,8 +27,8 @@ from .render.compile import (
     compile_pdf,
     healthcheck,
 )
-from .render.document import VisibilityViolation
-from .render.latex import Geometry, render_baseline
+from .render.document import VisibilityViolation, apply_validation, document_from_draft
+from .render.latex import Geometry, render_baseline, render_document
 from .runtime import BackendError, ContextExceeded, build_backend
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=__doc__)
@@ -261,6 +264,172 @@ def health(
     except ContextExceeded as exc:
         typer.secho(f"  {'context':<14} {exc}", fg=typer.colors.RED)
         raise typer.Exit(1) from exc
+
+
+@app.command("tailor")
+def tailor(
+    text: str | None = typer.Option(None, "--text", help="The job posting, pasted."),
+    file: Path | None = typer.Option(None, "--file", help="Read the posting from a file."),
+    root: Path | None = ROOT_OPTION,
+    company: str | None = typer.Option(None, "--company", help="Used in the run's folder name."),
+    bullets: int = typer.Option(9, "--bullets", help="Bullet budget for the Writer."),
+    sequential: bool = typer.Option(
+        False, "--sequential", help="Run Recall after the Selector, so it can see its picks."
+    ),
+    pdf: bool = typer.Option(True, "--pdf/--no-pdf", help="Render and compile the result."),
+    resume_run: str | None = typer.Option(
+        None, "--resume", help="Continue an existing run from its last completed stage."
+    ),
+) -> None:
+    """Tailor the resume to a job posting — the full five-agent pipeline."""
+    base, kb_dir, _ = _resolve(root)
+    config = Config.load(base)
+
+    posting = (file.read_text(encoding="utf-8") if file else text or "").strip()
+    if not posting and not resume_run:
+        typer.secho("give me the posting: --text or --file", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+
+    corpus = load_corpus(kb_dir)
+    if corpus.parse_errors:
+        typer.secho(
+            "knowledge base has parse errors; run `rt kb validate`", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(1)
+
+    runs_dir = base / "runs"
+    if resume_run:
+        run = Run(runs_dir / resume_run)
+        if not run.directory.is_dir():
+            typer.secho(f"no run named {resume_run!r} under runs/", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2)
+        posting = posting or run.read("posting")
+        typer.echo(f"resuming {run.id} — done: {', '.join(run.completed_stages()) or 'nothing'}")
+    else:
+        run = Run.create(runs_dir, run_slug(_guess_role(posting), company))
+
+    def progress(stage: str, status: str, detail: dict) -> None:
+        if status == "running":
+            typer.secho(f"  {stage:<10} running...", fg=typer.colors.CYAN, nl=False)
+            typer.echo("\r", nl=False)
+        elif status == "skipped":
+            typer.secho(f"  {stage:<10} skipped ({detail.get('reason')})", fg=typer.colors.BLUE)
+        else:
+            repairs = f"  repairs={detail['repairs']}" if detail.get("repairs") else ""
+            typer.secho(
+                f"  {stage:<10} done   in={detail.get('input', 0):>7,} "
+                f"out={detail.get('output', 0):>6,} cached={detail.get('cached', 0):>7,}{repairs}",
+                fg=typer.colors.GREEN,
+            )
+
+    backend = build_backend(config)
+    pipeline = Pipeline(backend, corpus, config, on_progress=progress)
+
+    typer.secho(f"\nrun {run.id}  —  backend {backend.name}", bold=True)
+    try:
+        result = asyncio.run(pipeline.run(run, posting, bullets=bullets, concurrent=not sequential))
+    except ContextExceeded as exc:
+        typer.secho(f"\n{exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+    except BackendError as exc:
+        typer.secho(f"\n{exc}", fg=typer.colors.RED, err=True)
+        typer.secho(f"resume with: rt tailor --resume {run.id}", fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(1) from exc
+
+    counts = result.selection.to_dict()["counts"]
+    typer.secho("\nselection", bold=True)
+    typer.echo(
+        f"  {counts['total']} facts  "
+        f"({counts['both']} both passes, {counts['selector_only']} selector only, "
+        f"{counts['recall_only']} recall only)  —  {counts['rejected']} considered and rejected"
+    )
+
+    report = render_gap_report(
+        result.requirements, result.selection, result.gaps, result.validation
+    )
+    (run.directory / "gap-report.md").write_text(report, encoding="utf-8")
+
+    absent = [g for g in result.gaps if g["status"] == "absent"]
+    weak = [g for g in result.gaps if g["status"] == "weak"]
+    typer.secho("\ngaps", bold=True)
+    typer.secho(
+        f"  {len(absent)} absent, {len(weak)} weak",
+        fg=typer.colors.YELLOW if result.gaps else typer.colors.GREEN,
+    )
+    for gap in absent[:5]:
+        typer.echo(f"    absent: {gap['text']}")
+
+    cuts = result.validation.get("cuts") or []
+    warnings = result.validation.get("warnings") or []
+    typer.secho("\nvalidator", bold=True)
+    typer.secho(
+        f"  {len(cuts)} cut, {len(warnings)} flagged",
+        fg=typer.colors.GREEN if result.clean else typer.colors.YELLOW,
+    )
+    for cut in cuts[:3]:
+        typer.echo(f"    cut: {cut.get('reason')}")
+
+    draft, notes = apply_validation(result.draft, result.validation)
+    for note in notes[:3]:
+        typer.echo(f"    {note}")
+
+    # Prompt tokens are input + cache reads. Reporting `input_tokens` alone
+    # showed "in 66" on a run that sent 49,000 tokens, because the corpus was
+    # served from cache and Anthropic counts that separately — a number that
+    # looks like the cost and is not.
+    usage = result.usage
+    prompt_tokens = usage.input_tokens + usage.cache_read_tokens
+    typer.secho("\ntokens", bold=True)
+    typer.echo(
+        f"  prompt {prompt_tokens:,}  ({usage.cache_read_tokens:,} from cache)  "
+        f"output {usage.output_tokens:,}"
+    )
+    if prompt_tokens:
+        saved = usage.cache_read_tokens / prompt_tokens
+        typer.echo(f"  {saved:.0%} of the prompt was cached across the five agents")
+
+    identity_path = kb_dir / "identity.yaml"
+    if not identity_path.is_file():
+        typer.secho("\nkb/identity.yaml missing — not rendering", fg=typer.colors.YELLOW)
+        raise typer.Exit(0)
+
+    identity = load_identity(identity_path)
+    typer.secho("\noutput", bold=True)
+    for contact_set in identity.set_names:
+        document = document_from_draft(draft, corpus, identity, contact_set)
+        tex_path = run.directory / f"resume-{contact_set}.tex"
+        tex_path.write_text(render_document(document, geometry=Geometry()), encoding="utf-8")
+        typer.echo(f"  {tex_path.relative_to(base)}")
+
+        if not pdf:
+            continue
+        try:
+            compiled = compile_pdf(tex_path, run.directory)
+        except (TectonicMissing, CompileError) as exc:
+            typer.secho(f"  {exc}", fg=typer.colors.RED, err=True)
+            continue
+        typer.echo(f"  {compiled.pdf.relative_to(base)}")
+        overflow = check_overflow(compiled, document, budget=config.page_budget)
+        typer.secho(
+            f"      {overflow.summary()}",
+            fg=typer.colors.YELLOW if overflow.over else typer.colors.GREEN,
+        )
+
+    typer.echo(f"  {(run.directory / 'gap-report.md').relative_to(base)}")
+
+
+def _guess_role(posting: str) -> str:
+    """A slug from the posting's first substantial line.
+
+    Only ever used for a folder name, so a poor guess is cosmetic. The
+    application archive (M7) takes the role from the user explicitly, where
+    getting it right actually matters.
+    """
+    for line in posting.splitlines():
+        line = line.strip()
+        if 3 < len(line) < 80:
+            return line
+    return "posting"
 
 
 if __name__ == "__main__":
