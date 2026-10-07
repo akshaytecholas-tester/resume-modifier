@@ -11,6 +11,7 @@ surfaces at startup rather than at the moment the user wants a PDF.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -83,18 +84,41 @@ def healthcheck() -> dict[str, object]:
     except (OSError, subprocess.SubprocessError):
         version = None
 
-    cache = Path.home() / "Library" / "Caches" / "Tectonic"
-    if not cache.is_dir():
-        cache = Path.home() / ".cache" / "Tectonic"
+    cache = _cache_dir()
 
     return {
         "tectonic": True,
         "path": path,
         "version": version,
-        # A cold cache means the first compile needs the network, which is the
-        # difference between a 2-second render and a confusing hang offline.
-        "cache_warm": cache.is_dir() and any(cache.iterdir()),
+        "cache_dir": str(cache) if cache else None,
+        # A cold cache means the first compile downloads the package bundle:
+        # over three minutes here, against 1.3s warm. Worth reporting, because
+        # offline it is the difference between a quick render and a long hang.
+        "cache_warm": bool(cache),
     }
+
+
+def _cache_dir() -> Path | None:
+    """Tectonic's package cache, if it exists and holds anything.
+
+    Tectonic uses the `app_dirs2` crate, which on macOS produces
+    `~/Library/Caches/TectonicProject.Tectonic` — not `.../Tectonic`, which an
+    earlier version of this function looked for and never found. It reported a
+    cold cache on a machine compiling in 1.3s, which would have set a 900s
+    timeout on every warm compile.
+    """
+    candidates = [
+        Path(os.environ["TECTONIC_CACHE_DIR"]) if os.environ.get("TECTONIC_CACHE_DIR") else None,
+        Path.home() / "Library" / "Caches" / "TectonicProject.Tectonic",
+        Path.home() / ".cache" / "Tectonic",
+        Path(os.environ["XDG_CACHE_HOME"]) / "Tectonic"
+        if os.environ.get("XDG_CACHE_HOME")
+        else None,
+    ]
+    for candidate in candidates:
+        if candidate and candidate.is_dir() and any(candidate.iterdir()):
+            return candidate
+    return None
 
 
 def page_count(pdf: Path) -> int:

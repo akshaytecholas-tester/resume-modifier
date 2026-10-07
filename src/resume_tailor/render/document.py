@@ -371,3 +371,198 @@ def _credentials_section(public: list[KBEntry], used: set[str]) -> Section | Non
     if not bullets:
         return None
     return Section(heading="Education & Certifications", kind="bullets", bullets=tuple(bullets))
+
+
+# ---------------------------------------------------------------------------
+# From the Writer's draft (spec-02 §3.4) to a renderable document.
+#
+# The second producer of a `Document`. `build_baseline` above renders the whole
+# knowledge base with no model involved; this renders one tailored run.
+# ---------------------------------------------------------------------------
+
+
+def apply_validation(draft: dict, validation: dict) -> tuple[dict, list[str]]:
+    """Apply the Validator's cuts to a draft. Returns `(draft, notes)`.
+
+    Cuts are applied, **warnings are not**. A warning means the bullet is
+    shown to the user with a mark against it — NDA content especially, which
+    the renderer refuses separately (spec-02 §3.5). Silently applying warnings
+    here would hide from the user the thing they most need to see.
+
+    Returns a new draft; the original artifact on disk stays as the Writer
+    produced it, so the two are comparable afterwards.
+    """
+    cuts = {c.get("bullet"): c for c in validation.get("cuts") or [] if c.get("bullet")}
+    if not cuts:
+        return draft, []
+
+    notes: list[str] = []
+    applied: set[str] = set()
+
+    sections = []
+    for section in draft.get("sections") or []:
+        bullets = []
+        for bullet in section.get("bullets") or []:
+            cut = cuts.get(bullet.get("text"))
+            if cut is None:
+                bullets.append(bullet)
+                continue
+            applied.add(bullet["text"])
+            replacement = cut.get("replacement")
+            if replacement:
+                bullets.append({**bullet, "text": replacement})
+                notes.append(f"corrected: {cut.get('reason', 'unstated reason')}")
+            else:
+                notes.append(f"cut: {cut.get('reason', 'unstated reason')}")
+        sections.append({**section, "bullets": bullets})
+
+    # The summary is prose, not a bullet, and the Validator cuts it by quoting
+    # it in the same `bullet` field. An earlier version walked only the bullet
+    # lists, so a cut summary was silently ignored and the unsupported claim
+    # reached the PDF — exactly the Q1 failure the Validator exists to catch.
+    summary = draft.get("summary")
+    if summary and summary in cuts:
+        cut = cuts[summary]
+        applied.add(summary)
+        replacement = cut.get("replacement")
+        summary = replacement or ""
+        notes.append(
+            f"{'corrected' if replacement else 'cut'} summary: "
+            f"{cut.get('reason', 'unstated reason')}"
+        )
+    result = {**draft, "sections": sections}
+    if summary != draft.get("summary"):
+        result["summary"] = summary
+
+    # A cut that matched nothing is a pipeline problem, not a content one: the
+    # Validator quoted text that is not in the draft, so the claim it objected
+    # to is still there. Reported rather than dropped.
+    for text, cut in cuts.items():
+        if text not in applied:
+            notes.append(
+                f"UNAPPLIED cut — the Validator quoted text that is not in the draft, "
+                f"so its objection still stands: {cut.get('reason', 'unstated reason')}"
+            )
+
+    return result, notes
+
+
+def document_from_draft(
+    draft: dict,
+    corpus: Corpus,
+    identity: Identity,
+    contact_set: str,
+) -> Document:
+    """Build a renderable document from one tailored run.
+
+    Role headings, dates and organisations come from the knowledge base rather
+    than the draft, deliberately: those are facts, and a model restating them
+    is a chance for them to drift. The draft supplies only the prose it wrote.
+    """
+    by_id = corpus.by_id()
+    sections: list[Section] = []
+    used: set[str] = set()
+
+    summary = (draft.get("summary") or "").strip()
+    if summary:
+        used.update(draft.get("summary_sources") or [])
+        sections.append(Section(heading="Summary", kind="prose", prose=summary))
+
+    skills = draft.get("skills") or []
+    if skills:
+        sections.append(
+            Section(
+                heading="Technical Skills",
+                kind="bullets",
+                bullets=tuple(
+                    Bullet(
+                        lead=group.get("group"),
+                        text=", ".join(group.get("items") or []),
+                        sources=tuple(group.get("sources") or []),
+                    )
+                    for group in skills
+                    if group.get("items")
+                ),
+            )
+        )
+
+    grouped: dict[str, list[dict]] = {}
+    for section in draft.get("sections") or []:
+        grouped.setdefault(section.get("kind") or "experience", []).append(section)
+
+    for kind, heading in (
+        ("experience", "Professional Experience"),
+        ("internship", "Internships"),
+        ("project", "Projects"),
+        ("education", "Education & Certifications"),
+    ):
+        blocks = grouped.get(kind)
+        if not blocks:
+            continue
+
+        # Internships and credentials render as plain bullet lists, as the
+        # source resume sets them. Rendering them as entries printed the
+        # degree twice: once as the entry's heading and again in its own
+        # bullet, because the Writer puts the whole credential in the bullet.
+        if kind in ("internship", "education"):
+            bullets: list[Bullet] = []
+            for block in blocks:
+                for raw in block.get("bullets") or []:
+                    text = (raw.get("text") or "").strip()
+                    if not text:
+                        continue
+                    sources = tuple(raw.get("sources") or [])
+                    used.update(sources)
+                    bullets.append(Bullet(lead=raw.get("lead"), text=text, sources=sources))
+            if bullets:
+                sections.append(Section(heading=heading, kind="bullets", bullets=tuple(bullets)))
+            continue
+
+        entries: list[Entry] = []
+        for block in blocks:
+            role = by_id.get(block.get("role_id") or "")
+            bullets = tuple(
+                Bullet(
+                    lead=b.get("lead"),
+                    text=(b.get("text") or "").strip(),
+                    sources=tuple(b.get("sources") or []),
+                )
+                for b in block.get("bullets") or []
+                if (b.get("text") or "").strip()
+            )
+            if not bullets:
+                continue
+            for bullet in bullets:
+                used.update(bullet.sources)
+
+            if role is None:
+                # The Writer named a role id that is not in the knowledge base.
+                # Render the bullets rather than dropping them — losing content
+                # over a bad reference is the silent omission this exists to
+                # prevent — and let the Validator's id check report it.
+                entries.append(Entry(title=block.get("role_id") or "Experience", bullets=bullets))
+                continue
+
+            used.add(role.id)
+            entries.append(
+                Entry(
+                    title=role.meta.title,
+                    org=getattr(role.meta, "org", None),
+                    location=getattr(role.meta, "location", None),
+                    dates=format_range(getattr(role.meta, "dates", None)),
+                    bullets=bullets,
+                )
+            )
+
+        if entries:
+            sections.append(Section(heading=heading, kind="entries", entries=tuple(entries)))
+
+    cited = [by_id[fid] for fid in sorted(used) if fid in by_id]
+    assert_exportable(cited)
+
+    return Document(
+        contact=contact_for(identity, contact_set),
+        contact_set=contact_set,
+        sections=tuple(sections),
+        sources=frozenset(used),
+    )

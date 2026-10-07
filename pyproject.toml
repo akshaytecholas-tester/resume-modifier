@@ -12,6 +12,11 @@ dependencies = [
     "ruamel.yaml>=0.18",
     "jinja2>=3.1",
     "typer>=0.12",
+    # The default backend. Declared rather than left optional because the tool
+    # does nothing useful without a model, and claude_sdk is what it reaches
+    # for unless told otherwise. The other backends are subprocesses or plain
+    # HTTP and need no package.
+    "claude-agent-sdk>=0.2",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +34,7 @@ markers = [
     "live: hits a real model backend or the network; excluded by default",
 ]
 addopts = "-m 'not live'"
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100

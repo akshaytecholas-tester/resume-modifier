@@ -61,7 +61,7 @@ class RunnerBackend(Protocol):
 
 `AgentResult.usage` carries input/output/cache token counts so the UI can report per-run cost regardless of backend (RK-2).
 
-### 2.1 `CliSubprocessRunner`
+### 2.1 `ClaudeCliRunner`
 
 Spawns `claude -p <prompt> --output-format json` with `--system-prompt`, `--model`, and `--disallowed-tools` set from the `AgentSpec`. Parses the JSON envelope for result text, session id, and usage.
 
@@ -69,17 +69,17 @@ Spawns `claude -p <prompt> --output-format json` with `--system-prompt`, `--mode
 - **Trade-off:** we manage sessions, retries, and JSON parsing ourselves instead of getting typed sessions and hooks from the SDK.
 - **Subagents:** each pipeline agent is its own invocation, which the orchestrator already assumes ([spec-02](spec-02-agent-pipeline.md) §5).
 
-### 2.2 `AgentSdkRunner`
+### 2.2 `ClaudeSdkRunner`
 
-Uses `claude_agent_sdk` with `ClaudeAgentOptions`, mapping each pipeline agent to an `AgentDefinition`.
+Uses `claude_agent_sdk` with `ClaudeAgentOptions`, one `query()` per pipeline agent.
 
-- **Auth:** `ANTHROPIC_API_KEY` from Claude Console.
-- **Trade-off:** costs money per run; zero policy ambiguity.
-- **Gain:** native subagents, hooks, typed sessions, structured permissions.
+- **Auth:** the user's existing subscription session, or `ANTHROPIC_API_KEY` if one is set. **Neither is required of the other** — OQ-1 resolved on 2026-10-06 that the SDK works with no key present, including with every `CLAUDE_CODE_*` variable stripped. An earlier version of this section listed the key as mandatory; it is not.
+- **Trade-off:** on the subscription it shares rate limits with interactive Claude Code sessions. With a key it costs money per run and carries no policy ambiguity.
+- **Gain:** typed messages, usage reporting, and no JSON envelope to unwrap.
 
 ### 2.3 Selection
 
-`RUNNER_BACKEND=cli|sdk` in `.env`, defaulting to the spike's verdict. An auth failure reports which backend failed and which credential it expected (AC-R15.3) — never a raw stack trace, because the two failure modes (expired OAuth vs missing API key) have completely different fixes.
+`backend` in `resume-tailor.toml` under `[runtime]`, overridable per run by the `RUNNER_BACKEND` environment variable. The default is `claude_sdk`, which is the spike's verdict. An auth failure reports which backend failed and which credential it expected (AC-R15.3) — never a raw stack trace, because the two failure modes (expired OAuth vs missing API key) have completely different fixes.
 
 ## 3. Spike protocol
 
