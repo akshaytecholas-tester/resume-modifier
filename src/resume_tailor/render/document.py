@@ -314,7 +314,8 @@ def _internship_bullet(role: KBEntry, by_id: dict[str, KBEntry], used: set[str])
     lead = f"{role.meta.title} — {org}" if org else role.meta.title
     return Bullet(
         text=" ".join(details) or role.body.split("<!--")[0].strip(),
-        lead=f"{lead} ({dates})" if dates else lead,
+        # The date is italicised inside the bold lead-in, as the source sets it.
+        lead=f"{lead} *({dates})*" if dates else lead,
         sources=tuple(sources),
     )
 

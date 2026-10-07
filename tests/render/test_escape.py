@@ -134,3 +134,32 @@ def test_markup_cannot_inject_latex() -> None:
     out = str(markup_tex(r"**\input{/etc/passwd}**"))
     assert r"\textbackslash{}input" in out
     assert r"\input{" not in out
+
+
+def test_markup_italicises() -> None:
+    """The source italicises parentheticals — "(Coursework: ...)" after the
+    degree, "(Jun 2024)" after an internship."""
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("CUSAT *(Coursework: DSA)*")) == r"CUSAT \textit{(Coursework: DSA)}"
+
+
+def test_bold_and_italic_together() -> None:
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("**9.13 / 10** *(top decile)*")) == (
+        r"\textbf{9.13 / 10} \textit{(top decile)}"
+    )
+
+
+def test_italic_pass_does_not_eat_half_a_bold_marker() -> None:
+    """Bold runs first, so by the italic pass no `**` remains to be misread."""
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("**bold** and plain")) == r"\textbf{bold} and plain"
+
+
+def test_lone_asterisk_is_left_alone() -> None:
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("2 * 3 = 6")) == "2 * 3 = 6"

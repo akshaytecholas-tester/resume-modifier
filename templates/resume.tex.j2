@@ -97,7 +97,7 @@
 \BLOCK{elif section.kind == 'bullets'}
 \begin{itemize}
 \BLOCK{for bullet in section.bullets}
-  \item \BLOCK{if bullet.lead}\textbf{\VAR{bullet.lead|tex}:} \BLOCK{endif}\VAR{bullet.text|markup}
+  \item \BLOCK{if bullet.lead}\textbf{\VAR{bullet.lead|markup}:} \BLOCK{endif}\VAR{bullet.text|markup}
 \BLOCK{endfor}
 \end{itemize}
 
@@ -108,7 +108,7 @@
 \BLOCK{if entry.bullets}
 \begin{itemize}
 \BLOCK{for bullet in entry.bullets}
-  \item \BLOCK{if bullet.lead}\textbf{\VAR{bullet.lead|tex}:} \BLOCK{endif}\VAR{bullet.text|markup}
+  \item \BLOCK{if bullet.lead}\textbf{\VAR{bullet.lead|markup}:} \BLOCK{endif}\VAR{bullet.text|markup}
 \BLOCK{endfor}
 \end{itemize}
 \BLOCK{endif}

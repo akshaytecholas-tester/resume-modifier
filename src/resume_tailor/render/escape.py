@@ -139,13 +139,24 @@ def join_tex(values: list[Any], separator: str = ", ") -> TexSafe:
 #: escaped conversion.
 _BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*", re.S)
 
+#: Inline `*italic*`. The source uses it for parentheticals — "(Coursework:
+#: C/C++, DSA, Networking, OS)" after the degree, "(Jun 2024)" after an
+#: internship — so reproducing its design (R7) needs it.
+#:
+#: Applied after bold, by which point `**` pairs are already `\textbf{...}` and
+#: their asterisks are gone, so a single-asterisk pass cannot mistake half of a
+#: bold marker for an italic one.
+_ITALIC = re.compile(r"(?<!\*)\*(?=\S)([^*]+?)(?<=\S)\*(?!\*)", re.S)
+
 
 def markup_tex(value: Any) -> TexSafe:
-    """Escape, then honour `**bold**`.
+    """Escape, then honour `**bold**` and `*italic*`.
 
-    Deliberately the only markup supported. Every additional form is another
-    way for a fact body to produce LaTeX that nobody reviewed, and bold is the
-    only one the source document actually uses.
+    Deliberately the only two forms supported, because they are the only two
+    the source document uses. Every additional form is another way for a fact
+    body to produce LaTeX that nobody reviewed.
     """
-    escaped = escape_tex(value)
-    return TexSafe(_BOLD.sub(lambda m: rf"\textbf{{{m.group(1)}}}", escaped))
+    text = escape_tex(value)
+    text = _BOLD.sub(lambda m: rf"\textbf{{{m.group(1)}}}", text)
+    text = _ITALIC.sub(lambda m: rf"\textit{{{m.group(1)}}}", text)
+    return TexSafe(text)
