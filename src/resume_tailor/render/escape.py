@@ -126,3 +126,26 @@ def tex_raw(value: str) -> TexSafe:
 def join_tex(values: list[Any], separator: str = ", ") -> TexSafe:
     """Escape each item, then join with an unescaped separator."""
     return TexSafe(separator.join(escape_tex(v) for v in values))
+
+
+#: Inline `**bold**`, the one piece of markup knowledge-base bodies may carry.
+#:
+#: The source resume bolds key figures inside prose — "2,000+ concurrent users"
+#: inside a bullet, "2.2+ years of experience" inside the summary — and that
+#: emphasis is part of its design, not decoration.
+#:
+#: Safe to apply *after* escaping because `*` is not a LaTeX special character,
+#: so it survives `escape_tex` untouched and nothing inside the braces can have
+#: escaped conversion.
+_BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*", re.S)
+
+
+def markup_tex(value: Any) -> TexSafe:
+    """Escape, then honour `**bold**`.
+
+    Deliberately the only markup supported. Every additional form is another
+    way for a fact body to produce LaTeX that nobody reviewed, and bold is the
+    only one the source document actually uses.
+    """
+    escaped = escape_tex(value)
+    return TexSafe(_BOLD.sub(lambda m: rf"\textbf{{{m.group(1)}}}", escaped))

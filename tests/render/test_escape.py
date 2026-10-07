@@ -106,3 +106,31 @@ def test_join_escapes_items_but_not_the_separator() -> None:
 
 def test_numbers_are_accepted() -> None:
     assert str(escape_tex(40)) == "40"
+
+
+# -- inline bold -----------------------------------------------------------
+
+
+def test_markup_bolds_and_still_escapes() -> None:
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("serving **2,000+ users** & more")) == (
+        r"serving \textbf{2,000+ users} \& more"
+    )
+
+
+def test_markup_ignores_loose_asterisks() -> None:
+    """`a ** b ** c` is arithmetic or emphasis the author did not intend."""
+    from resume_tailor.render.escape import markup_tex
+
+    assert str(markup_tex("a ** b ** c")) == "a ** b ** c"
+
+
+def test_markup_cannot_inject_latex() -> None:
+    """Content inside `**` is escaped before the bold wrapper is applied, so a
+    fact body cannot smuggle a macro through it."""
+    from resume_tailor.render.escape import markup_tex
+
+    out = str(markup_tex(r"**\input{/etc/passwd}**"))
+    assert r"\textbackslash{}input" in out
+    assert r"\input{" not in out

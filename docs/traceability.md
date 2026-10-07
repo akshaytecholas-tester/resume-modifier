@@ -41,6 +41,9 @@ Every requirement above traces to a quote. Three items in the specs are **not** 
 | Proposals inbox for agent-suggested KB changes | Proposed by assistant, 2026-10-06 | Required to keep AC-R13.3's single write path honest — agents propose, they never write |
 | `runs/` vs `applications/` boundary; promotion as an explicit step | Proposed by assistant, 2026-10-07 | You asked for a tracker and an archive, not for a distinction between attempts and submissions. Added because exporting a PDF to look at it must not create an application record, and because freezing requires a defined moment |
 | Integrity hashing and read-only artifacts | Proposed by assistant, 2026-10-07 | R20 asks to keep track of content used. Hashing is what makes that claim checkable rather than assumed |
+| `order` field on entries | Proposed by assistant, 2026-10-07 | Baseline rendering needs a deterministic bullet order, and sorting by id put the financial ledger above the trading engine because `l` precedes `t`. Author-chosen, and ignored once the Writer orders by relevance |
+| `group` field on `skills.yaml` rows | Proposed by assistant, 2026-10-07 | The source resume groups skills into four editorial groups. Taxonomy facets describe what a term *is*, which is not how a reader wants them grouped on a page |
+| Inline `**bold**` in fact bodies and prose | Proposed by assistant, 2026-10-07 | The source resume bolds key figures inside prose and bullets; reproducing its design (R7) needs a way to express that. Deliberately the only markup supported |
 | `ghosted` as a distinct terminal status | Proposed by assistant, 2026-10-07 | Silence is the most common outcome; folding it into `rejected` destroys the only signal about which channels work |
 
 If any of these is unwanted it can be removed without affecting a stated requirement, with two exceptions: the two-pass design, which R11 depends on, and the proposals inbox, which R13.3 depends on.

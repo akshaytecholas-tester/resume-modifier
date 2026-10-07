@@ -67,12 +67,34 @@ def test_undefined_is_strict() -> None:
         render_string(r"\VAR{nope|tex}")
 
 
+def test_geometry_reproduces_the_source_measurements() -> None:
+    """These are the author's design, measured from their PDF, not defaults.
+
+    Asserted here so a later "improvement" to the layout has to change a test
+    that says why it exists.
+    """
+    g = Geometry()
+    assert g.paper_width == "595.28bp" and g.paper_height == "841.89bp"
+    assert g.left == "36bp" and g.text_width == "545bp"  # right margin 14.28bp
+    assert g.body_size == "11bp" and g.baseline == "13bp"
+
+
+def test_lengths_are_bp_never_pt() -> None:
+    """A PDF point is 1/72in; TeX's `pt` is 1/72.27in.
+
+    Writing a measured 595.28 as `pt` produced a 593.06pt page — every length
+    0.37% small, uniformly enough to look like a font difference.
+    """
+    for field, value in vars(Geometry()).items():
+        if isinstance(value, str) and value.rstrip("0123456789.").strip() == "pt":
+            raise AssertionError(f"{field}={value!r} uses pt; measurements must be bp")
+
+
 def test_geometry_values_are_emitted_verbatim() -> None:
     context = Geometry().as_context()
-    assert str(context["left"]) == "0.5in"
-    # Template-authored lengths must not be escaped; `0.5in` has nothing to
-    # escape, but the type marker is what lets them through the guard at all.
-    assert render_string(r"\VAR{g.left}", g=context) == "0.5in"
+    # Template-authored lengths must not be escaped; the type marker is what
+    # lets them past the guard at all.
+    assert render_string(r"\VAR{g.left}", g=context) == "36bp"
 
 
 def _document() -> Document:
@@ -102,7 +124,7 @@ def test_full_template_renders_and_escapes() -> None:
     assert r"Engineer \& Analyst" in out
     assert r"Built 100\% of it." in out
     assert r"C\#, Python" in out
-    assert r"\documentclass[11pt,a4paper]{article}" in out
+    assert r"\documentclass[11pt]{article}" in out
 
 
 def test_email_and_links_are_hyperlinked() -> None:
@@ -134,6 +156,6 @@ def test_empty_sections_are_dropped() -> None:
 
 
 def test_geometry_is_a_parameter(tmp_path: Path) -> None:
-    out = render_document(_document(), geometry=Geometry(right="0.2in", font_size=10))
-    assert "right=0.2in" in out
-    assert "[10pt,a4paper]" in out
+    out = render_document(_document(), geometry=Geometry(text_width="400bp", font_size=10))
+    assert "textwidth=400bp" in out
+    assert "[10pt]" in out

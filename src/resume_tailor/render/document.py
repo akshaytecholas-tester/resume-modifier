@@ -229,7 +229,10 @@ def build_baseline(
             Section(
                 heading="Internships",
                 kind="bullets",
-                bullets=tuple(_internship_bullet(r, by_id, used) for r in internships),
+                # Reverse-chronological, like every other section. Corpus order
+                # is alphabetical by id, which put a 2023 internship above a
+                # 2024 one.
+                bullets=tuple(_internship_bullet(r, by_id, used) for r in _sort_roles(internships)),
             )
         )
 

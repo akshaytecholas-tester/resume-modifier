@@ -131,9 +131,6 @@ def render(
     ),
     pdf: bool = typer.Option(True, "--pdf/--no-pdf", help="Compile with Tectonic."),
     budget: int = typer.Option(1, "--budget", help="Page budget; overflow is reported, never cut."),
-    exact_source_margins: bool = typer.Option(
-        False, "--exact-source-margins", help="Reproduce the source PDF's asymmetric margins."
-    ),
 ) -> None:
     """Render the whole knowledge base to LaTeX and PDF — no agents involved.
 
@@ -173,7 +170,9 @@ def render(
     outdir.mkdir(parents=True, exist_ok=True)
     summary = summary_file.read_text(encoding="utf-8").strip() if summary_file else None
 
-    geometry = Geometry(right="0.2in") if exact_source_margins else Geometry()
+    # The defaults ARE the source document's measurements, so there is no
+    # "corrected" variant to opt out of.
+    geometry = Geometry()
 
     for name in sets:
         try:
